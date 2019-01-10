@@ -35,8 +35,7 @@ export interface CommonPipelineSourceActionProps extends codepipeline.CommonActi
 /**
  * Construction properties of the {@link PipelineSourceAction S3 source Action}.
  */
-export interface PipelineSourceActionProps extends CommonPipelineSourceActionProps,
-    codepipeline.CommonActionConstructProps {
+export interface PipelineSourceActionProps extends CommonPipelineSourceActionProps {
   /**
    * The Amazon S3 bucket that stores the source code
    */
@@ -47,9 +46,12 @@ export interface PipelineSourceActionProps extends CommonPipelineSourceActionPro
  * Source that is provided by a specific Amazon S3 object.
  */
 export class PipelineSourceAction extends codepipeline.SourceAction {
-  constructor(scope: cdk.Construct, id: string, props: PipelineSourceActionProps) {
-    super(scope, id, {
+  private readonly bucket: IBucket;
+
+  constructor(actionName: string, props: PipelineSourceActionProps) {
+    super(actionName, {
       provider: 'S3',
+      outputArtifactName: props.outputArtifactName || `Artifact_${actionName}_${props.bucket.node.uniqueId}`,
       configuration: {
         S3Bucket: props.bucket.bucketName,
         S3ObjectKey: props.bucketKey,
@@ -58,7 +60,11 @@ export class PipelineSourceAction extends codepipeline.SourceAction {
       ...props,
     });
 
+    this.bucket = props.bucket;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, _parent: cdk.Construct): void {
     // pipeline needs permissions to read from the S3 bucket
-    props.bucket.grantRead(props.stage.pipeline.role);
+    this.bucket.grantRead(pipeline.role);
   }
 }

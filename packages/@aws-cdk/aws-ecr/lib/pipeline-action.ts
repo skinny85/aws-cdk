@@ -28,8 +28,7 @@ export interface CommonPipelineSourceActionProps extends codepipeline.CommonActi
 /**
  * Construction properties of {@link PipelineSourceAction}.
  */
-export interface PipelineSourceActionProps extends CommonPipelineSourceActionProps,
-    codepipeline.CommonActionConstructProps {
+export interface PipelineSourceActionProps extends CommonPipelineSourceActionProps {
   /**
    * The repository that will be watched for changes.
    */
@@ -40,23 +39,30 @@ export interface PipelineSourceActionProps extends CommonPipelineSourceActionPro
  * The ECR Repository source CodePipeline Action.
  */
 export class PipelineSourceAction extends codepipeline.SourceAction {
-  constructor(scope: cdk.Construct, id: string, props: PipelineSourceActionProps) {
-    super(scope, id, {
+  private readonly props: PipelineSourceActionProps;
+
+  constructor(actionName: string, props: PipelineSourceActionProps) {
+    super(actionName, {
       provider: 'ECR',
       configuration: {
         RepositoryName: props.repository.repositoryName,
         ImageTag: props.imageTag,
       },
+      outputArtifactName: props.outputArtifactName || `Artifact_${actionName}_${props.repository.node.uniqueId}`,
       ...props,
     });
 
-    props.stage.pipeline.role.addToPolicy(new iam.PolicyStatement()
+    this.props = props;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, _parent: cdk.Construct): void {
+    pipeline.role.addToPolicy(new iam.PolicyStatement()
       .addActions(
         'ecr:DescribeImages',
       )
-      .addResource(props.repository.repositoryArn));
+      .addResource(this.props.repository.repositoryArn));
 
-    props.repository.onImagePushed(props.stage.pipeline.node.uniqueId + 'SourceEventRule',
-        props.stage.pipeline, props.imageTag);
+    this.props.repository.onImagePushed(pipeline.node.uniqueId + 'SourceEventRule',
+        pipeline, this.props.imageTag);
   }
 }

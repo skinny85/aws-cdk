@@ -14,10 +14,12 @@ const pipeline = new codepipeline.Pipeline(stack, 'Pipeline', {
   artifactBucket: bucket,
 });
 
-const sourceStage = pipeline.addStage('Source');
-bucket.addToPipeline(sourceStage, 'S3', {
+const sourceAction = bucket.asCodePipelineAction('S3', {
   bucketKey: 'some/path',
 });
+pipeline.addStage(new codepipeline.Stage('Source', {
+  actions: [sourceAction],
+}));
 
 const jenkinsProvider = new codepipeline.JenkinsProvider(stack, 'JenkinsProvider', {
   providerName: 'JenkinsProvider',
@@ -25,15 +27,21 @@ const jenkinsProvider = new codepipeline.JenkinsProvider(stack, 'JenkinsProvider
   version: '2',
 });
 
-const buildStage = pipeline.addStage('Build');
-jenkinsProvider.addToPipeline(buildStage, 'JenkinsBuild', {
-  projectName: 'JenkinsProject1',
-});
-jenkinsProvider.addToPipelineAsTest(buildStage, 'JenkinsTest', {
-  projectName: 'JenkinsProject2',
-});
-jenkinsProvider.addToPipelineAsTest(buildStage, 'JenkinsTest2', {
-  projectName: 'JenkinsProject3',
-});
+pipeline.addStage(new codepipeline.Stage('Build', {
+  actions: [
+    jenkinsProvider.asCodePipelineAction('JenkinsBuild', {
+      projectName: 'JenkinsProject1',
+      inputArtifact: sourceAction.outputArtifact,
+    }),
+    jenkinsProvider.asCodePipelineTestAction('JenkinsTest', {
+      projectName: 'JenkinsProject2',
+      inputArtifact: sourceAction.outputArtifact,
+    }),
+    jenkinsProvider.asCodePipelineTestAction('JenkinsTest2', {
+      projectName: 'JenkinsProject3',
+      inputArtifact: sourceAction.outputArtifact,
+    }),
+  ],
+}));
 
 app.run();

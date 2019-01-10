@@ -1,15 +1,14 @@
-import cdk = require("@aws-cdk/cdk");
-import { Action, ActionArtifactBounds, ActionCategory, CommonActionConstructProps, CommonActionProps } from "./action";
+import { Action, ActionArtifactBounds, ActionCategory, CommonActionProps } from "./action";
 import { Artifact } from "./artifact";
 
 /**
  * Construction properties of the low level {@link BuildAction build action}.
  */
-export interface BuildActionProps extends CommonActionProps, CommonActionConstructProps {
+export interface BuildActionProps extends CommonActionProps {
   /**
    * The source to use as input for this build.
    */
-  inputArtifact?: Artifact;
+  inputArtifact: Artifact;
 
   /**
    * The service provider that the action calls. For example, a valid provider for Source actions is CodeBuild.
@@ -38,7 +37,7 @@ export interface BuildActionProps extends CommonActionProps, CommonActionConstru
   /**
    * The name of the build's output artifact.
    */
-  outputArtifactName?: string;
+  outputArtifactName: string;
 
   /**
    * The action's configuration. These are key-value pairs that specify input values for an action.
@@ -57,8 +56,8 @@ export interface BuildActionProps extends CommonActionProps, CommonActionConstru
 export abstract class BuildAction extends Action {
   public readonly outputArtifact: Artifact;
 
-  constructor(scope: cdk.Construct, id: string, props: BuildActionProps) {
-    super(scope, id, {
+  constructor(name: string, props: BuildActionProps) {
+    super(name, {
       category: ActionCategory.Build,
       ...props,
     });

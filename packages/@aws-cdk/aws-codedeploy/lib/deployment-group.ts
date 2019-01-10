@@ -1,7 +1,6 @@
 import autoscaling = require("@aws-cdk/aws-autoscaling");
 import cloudwatch = require("@aws-cdk/aws-cloudwatch");
 import codedeploylb = require("@aws-cdk/aws-codedeploy-api");
-import codepipeline = require("@aws-cdk/aws-codepipeline-api");
 import ec2 = require("@aws-cdk/aws-ec2");
 import iam = require('@aws-cdk/aws-iam');
 import s3 = require("@aws-cdk/aws-s3");
@@ -19,6 +18,7 @@ export interface IServerDeploymentGroup extends cdk.IConstruct {
   readonly deploymentConfig: IServerDeploymentConfig;
   readonly autoScalingGroups?: autoscaling.AutoScalingGroup[];
   export(): ServerDeploymentGroupImportProps;
+  asCodePipelineAction(name: string, props: CommonPipelineDeployActionProps): PipelineDeployAction;
 }
 
 /**
@@ -82,11 +82,10 @@ export abstract class ServerDeploymentGroupBase extends cdk.Construct implements
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineDeployAction} deploy Action
    */
-  public addToPipeline(stage: codepipeline.IStage, name: string, props: CommonPipelineDeployActionProps = {}):
+  public asCodePipelineAction(name: string, props: CommonPipelineDeployActionProps):
       PipelineDeployAction {
-    return new PipelineDeployAction(this, name, {
+    return new PipelineDeployAction(name, {
       deploymentGroup: this,
-      stage,
       ...props,
     });
   }

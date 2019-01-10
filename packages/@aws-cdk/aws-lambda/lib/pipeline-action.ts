@@ -67,8 +67,7 @@ export interface CommonPipelineInvokeActionProps extends codepipeline.CommonActi
 /**
  * Construction properties of the {@link PipelineInvokeAction Lambda invoke CodePipeline Action}.
  */
-export interface PipelineInvokeActionProps extends CommonPipelineInvokeActionProps,
-    codepipeline.CommonActionConstructProps {
+export interface PipelineInvokeActionProps extends CommonPipelineInvokeActionProps {
   /**
    * The lambda function to invoke.
    */
@@ -81,17 +80,18 @@ export interface PipelineInvokeActionProps extends CommonPipelineInvokeActionPro
  * @see https://docs.aws.amazon.com/codepipeline/latest/userguide/actions-invoke-lambda-function.html
  */
 export class PipelineInvokeAction extends codepipeline.Action {
-  constructor(scope: cdk.Construct, id: string, props: PipelineInvokeActionProps) {
-    super(scope, id, {
-      stage: props.stage,
-      runOrder: props.runOrder,
+  private readonly props: PipelineInvokeActionProps;
+
+  constructor(name: string, props: PipelineInvokeActionProps) {
+    super(name, {
       category: codepipeline.ActionCategory.Invoke,
       provider: 'Lambda',
       artifactBounds: codepipeline.defaultBounds(),
       configuration: {
         FunctionName: props.lambda.functionName,
         UserParameters: props.userParameters
-      }
+      },
+      ...props,
     });
 
     // handle input artifacts
@@ -104,24 +104,7 @@ export class PipelineInvokeAction extends codepipeline.Action {
       this.addOutputArtifact(outputArtifactName);
     }
 
-    // allow pipeline to list functions
-    props.stage.pipeline.role.addToPolicy(new iam.PolicyStatement()
-      .addAction('lambda:ListFunctions')
-      .addAllResources());
-
-    // allow pipeline to invoke this lambda functionn
-    props.stage.pipeline.role.addToPolicy(new iam.PolicyStatement()
-      .addAction('lambda:InvokeFunction')
-      .addResource(props.lambda.functionArn));
-
-    // allow lambda to put job results for this pipeline.
-    const addToPolicy = props.addPutJobResultPolicy !== undefined ? props.addPutJobResultPolicy : true;
-    if (addToPolicy) {
-      props.lambda.addToRolePolicy(new iam.PolicyStatement()
-        .addAllResources() // to avoid cycles (see docs)
-        .addAction('codepipeline:PutJobSuccessResult')
-        .addAction('codepipeline:PutJobFailureResult'));
-    }
+    this.props = props;
   }
 
   public outputArtifacts(): codepipeline.Artifact[] {
@@ -129,11 +112,32 @@ export class PipelineInvokeAction extends codepipeline.Action {
   }
 
   public outputArtifact(artifactName: string): codepipeline.Artifact {
-    const result = this._outputArtifacts.find(a => (a.name === artifactName));
+    const result = this._outputArtifacts.find(a => (a.artifactName === artifactName));
     if (result === undefined) {
       throw new Error(`Could not find the output Artifact with name '${artifactName}'`);
     } else {
       return result;
+    }
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, _parent: cdk.Construct): void {
+    // allow pipeline to list functions
+    pipeline.role.addToPolicy(new iam.PolicyStatement()
+      .addAction('lambda:ListFunctions')
+      .addAllResources());
+
+    // allow pipeline to invoke this lambda functionn
+    pipeline.role.addToPolicy(new iam.PolicyStatement()
+      .addAction('lambda:InvokeFunction')
+      .addResource(this.props.lambda.functionArn));
+
+    // allow lambda to put job results for this pipeline.
+    const addToPolicy = this.props.addPutJobResultPolicy !== undefined ? this.props.addPutJobResultPolicy : true;
+    if (addToPolicy) {
+      this.props.lambda.addToRolePolicy(new iam.PolicyStatement()
+        .addAllResources() // to avoid cycles (see docs)
+        .addAction('codepipeline:PutJobSuccessResult')
+        .addAction('codepipeline:PutJobFailureResult'));
     }
   }
 }

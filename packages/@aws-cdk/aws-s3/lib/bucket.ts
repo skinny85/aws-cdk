@@ -1,4 +1,3 @@
-import actions = require('@aws-cdk/aws-codepipeline-api');
 import iam = require('@aws-cdk/aws-iam');
 import kms = require('@aws-cdk/aws-kms');
 import { IBucketNotificationDestination } from '@aws-cdk/aws-s3-notifications';
@@ -61,7 +60,7 @@ export interface IBucket extends cdk.IConstruct {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineSourceAction}
    */
-  addToPipeline(stage: actions.IStage, name: string, props: CommonPipelineSourceActionProps): PipelineSourceAction;
+  asCodePipelineAction(name: string, props: CommonPipelineSourceActionProps): PipelineSourceAction;
 
   /**
    * Adds a statement to the resource policy for a principal (i.e.
@@ -267,9 +266,8 @@ export abstract class BucketBase extends cdk.Construct implements IBucket {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineSourceAction}
    */
-  public addToPipeline(stage: actions.IStage, name: string, props: CommonPipelineSourceActionProps): PipelineSourceAction {
-    return new PipelineSourceAction(this, name, {
-      stage,
+  public asCodePipelineAction(name: string, props: CommonPipelineSourceActionProps): PipelineSourceAction {
+    return new PipelineSourceAction(name, {
       bucket: this,
       ...props,
     });

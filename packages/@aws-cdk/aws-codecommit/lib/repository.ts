@@ -1,4 +1,3 @@
-import actions = require('@aws-cdk/aws-codepipeline-api');
 import events = require('@aws-cdk/aws-events');
 import cdk = require('@aws-cdk/cdk');
 import { CfnRepository } from './codecommit.generated';
@@ -26,7 +25,7 @@ export interface IRepository extends cdk.IConstruct {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineSourceAction}
    */
-  addToPipeline(stage: actions.IStage, name: string, props?: CommonPipelineSourceActionProps): PipelineSourceAction;
+  asCodePipelineAction(actionName: string, props?: CommonPipelineSourceActionProps): PipelineSourceAction;
 
   /**
    * Defines a CloudWatch event rule which triggers for repository events. Use
@@ -132,10 +131,9 @@ export abstract class RepositoryBase extends cdk.Construct implements IRepositor
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineSourceAction}
    */
-  public addToPipeline(stage: actions.IStage, name: string, props: CommonPipelineSourceActionProps = {}): PipelineSourceAction {
-    return new PipelineSourceAction(this, name, {
-      stage,
-      repository: this,
+  public asCodePipelineAction(actionName: string, props: CommonPipelineSourceActionProps = {}): PipelineSourceAction {
+    return new PipelineSourceAction(actionName, {
+        repository: this,
       ...props,
     });
   }

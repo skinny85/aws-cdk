@@ -1,5 +1,4 @@
 import cloudwatch = require('@aws-cdk/aws-cloudwatch');
-import codepipeline = require('@aws-cdk/aws-codepipeline-api');
 import ec2 = require('@aws-cdk/aws-ec2');
 import events = require('@aws-cdk/aws-events');
 import iam = require('@aws-cdk/aws-iam');
@@ -57,7 +56,7 @@ export interface IFunction extends cdk.IConstruct, events.IEventRuleTarget, logs
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineInvokeAction}
    */
-  addToPipeline(stage: codepipeline.IStage, name: string, props?: CommonPipelineInvokeActionProps): PipelineInvokeAction;
+  asCodePipelineAction(actionName: string, props?: CommonPipelineInvokeActionProps): PipelineInvokeAction;
 
   addToRolePolicy(statement: iam.PolicyStatement): void;
 
@@ -206,9 +205,8 @@ export abstract class FunctionBase extends cdk.Construct implements IFunction  {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineInvokeAction}
    */
-  public addToPipeline(stage: codepipeline.IStage, name: string, props: CommonPipelineInvokeActionProps = {}): PipelineInvokeAction {
-    return new PipelineInvokeAction(this, name, {
-      stage,
+  public asCodePipelineAction(actionName: string, props: CommonPipelineInvokeActionProps = {}): PipelineInvokeAction {
+    return new PipelineInvokeAction(actionName, {
       lambda: this,
       ...props,
     });

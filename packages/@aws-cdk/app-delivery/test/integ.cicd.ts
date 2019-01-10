@@ -12,14 +12,18 @@ const pipeline = new code.Pipeline(stack, 'CodePipeline', {
     removalPolicy: cdk.RemovalPolicy.Destroy
   })
 });
-const source = new code.GitHubSourceAction(stack, 'GitHub', {
-  stage: pipeline.addStage('Source'),
+const source = new code.GitHubSourceAction('GitHub', {
   owner: 'awslabs',
   repo: 'aws-cdk',
   oauthToken: new cdk.Secret('DummyToken'),
   pollForSourceChanges: true,
+  outputArtifactName: 'Artifact_CICDGitHubF8BA7ADD',
 });
-const stage = pipeline.addStage('Deploy');
+pipeline.addStage(new code.Stage('Source', {
+  actions: [source],
+}));
+const stage = new code.Stage('Deploy');
+pipeline.addStage(stage);
 new cicd.PipelineDeployStackAction(stack, 'DeployStack', {
   stage,
   stack,

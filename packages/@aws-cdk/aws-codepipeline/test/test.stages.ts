@@ -11,13 +11,13 @@ export = {
       const stack = new cdk.Stack();
       const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
 
-      new codepipeline.Stage(stack, 'SecondStage', { pipeline });
-      new codepipeline.Stage(stack, 'FirstStage', {
-        pipeline,
-        placement: {
-          atIndex: 0,
-        },
-      });
+      pipeline
+        .addStage(new codepipeline.Stage('SecondStage'))
+        .addStage(new codepipeline.Stage('FirstStage'), {
+          placement: {
+            atIndex: 0,
+          },
+        });
 
       expect(stack, true).to(haveResourceLike('AWS::CodePipeline::Pipeline', {
         "Stages": [
@@ -33,12 +33,14 @@ export = {
       const stack = new cdk.Stack();
       const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
 
-      const secondStage = pipeline.addStage('SecondStage');
-      pipeline.addStage('FirstStage', {
-        placement: {
-          rightBefore: secondStage,
-        },
-      });
+      const secondStage = new codepipeline.Stage('SecondStage');
+      pipeline
+        .addStage(secondStage)
+        .addStage(new codepipeline.Stage('FirstStage'), {
+          placement: {
+            rightBefore: secondStage,
+          },
+        });
 
       expect(stack, true).to(haveResourceLike('AWS::CodePipeline::Pipeline', {
         "Stages": [
@@ -54,13 +56,15 @@ export = {
       const stack = new cdk.Stack();
       const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
 
-      const firstStage = pipeline.addStage('FirstStage');
-      pipeline.addStage('ThirdStage');
-      pipeline.addStage('SecondStage', {
-        placement: {
-          justAfter: firstStage,
-        },
-      });
+      const firstStage = new codepipeline.Stage('FirstStage');
+      pipeline
+        .addStage(firstStage)
+        .addStage(new codepipeline.Stage('ThirdStage'))
+        .addStage(new codepipeline.Stage('SecondStage'), {
+          placement: {
+            justAfter: firstStage,
+          },
+        });
 
       expect(stack, true).to(haveResourceLike('AWS::CodePipeline::Pipeline', {
         "Stages": [
@@ -78,8 +82,7 @@ export = {
       const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
 
       test.throws(() => {
-        new codepipeline.Stage(stack, 'Stage', {
-          pipeline,
+        pipeline.addStage(new codepipeline.Stage('Stage'), {
           placement: {
             atIndex: -1,
           },
@@ -94,7 +97,7 @@ export = {
       const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
 
       test.throws(() => {
-        pipeline.addStage('Stage', {
+        pipeline.addStage(new codepipeline.Stage('Stage'), {
           placement: {
             atIndex: 1,
           },
@@ -106,12 +109,11 @@ export = {
 
     "attempting to insert a Stage before a Stage that doesn't exist results in an error"(test: Test) {
       const stack = new cdk.Stack();
-      const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
-      const stage = pipeline.addStage('Stage');
+      const stage = new codepipeline.Stage('Stage');
 
       const anotherPipeline = new codepipeline.Pipeline(stack, 'AnotherPipeline');
       test.throws(() => {
-        anotherPipeline.addStage('AnotherStage', {
+        anotherPipeline.addStage(new codepipeline.Stage('AnotherStage'), {
           placement: {
             rightBefore: stage,
           },
@@ -123,12 +125,11 @@ export = {
 
     "attempting to insert a Stage after a Stage that doesn't exist results in an error"(test: Test) {
       const stack = new cdk.Stack();
-      const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
-      const stage = pipeline.addStage('Stage');
+      const stage = new codepipeline.Stage('Stage');
 
       const anotherPipeline = new codepipeline.Pipeline(stack, 'AnotherPipeline');
       test.throws(() => {
-        anotherPipeline.addStage('AnotherStage', {
+        anotherPipeline.addStage(new codepipeline.Stage('AnotherStage'), {
           placement: {
             justAfter: stage,
           },
@@ -141,10 +142,11 @@ export = {
     "providing more than one placement value results in an error"(test: Test) {
       const stack = new cdk.Stack();
       const pipeline = new codepipeline.Pipeline(stack, 'Pipeline');
-      const stage = pipeline.addStage('FirstStage');
+      const stage = new codepipeline.Stage('FirstStage');
+      pipeline.addStage(stage);
 
       test.throws(() => {
-        pipeline.addStage('SecondStage', {
+        pipeline.addStage(new codepipeline.Stage('SecondStage'), {
           placement: {
             rightBefore: stage,
             justAfter: stage,

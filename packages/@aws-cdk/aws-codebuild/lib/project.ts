@@ -1,7 +1,6 @@
 import assets = require('@aws-cdk/assets');
 import { DockerImageAsset, DockerImageAssetProps } from '@aws-cdk/assets-docker';
 import cloudwatch = require('@aws-cdk/aws-cloudwatch');
-import codepipeline = require('@aws-cdk/aws-codepipeline-api');
 import ecr = require('@aws-cdk/aws-ecr');
 import events = require('@aws-cdk/aws-events');
 import iam = require('@aws-cdk/aws-iam');
@@ -39,7 +38,7 @@ export interface IProject extends cdk.IConstruct, events.IEventRuleTarget {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineBuildAction} build Action
    */
-  addToPipeline(stage: codepipeline.IStage, name: string, props?: CommonPipelineBuildActionProps): PipelineBuildAction;
+  asCodePipelineAction(actionName: string, props: CommonPipelineBuildActionProps): PipelineBuildAction;
 
   /**
    * Convenience method for creating a new {@link PipelineTestAction} test Action,
@@ -50,7 +49,7 @@ export interface IProject extends cdk.IConstruct, events.IEventRuleTarget {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineBuildAction} test Action
    */
-  addToPipelineAsTest(stage: codepipeline.IStage, name: string, props?: CommonPipelineTestActionProps): PipelineTestAction;
+  asCodePipelineTestAction(actionName: string, props: CommonPipelineTestActionProps): PipelineTestAction;
 
   /**
    * Defines a CloudWatch event rule triggered when the build project state
@@ -205,9 +204,8 @@ export abstract class ProjectBase extends cdk.Construct implements IProject {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineBuildAction} build Action
    */
-  public addToPipeline(stage: codepipeline.IStage, name: string, props: CommonPipelineBuildActionProps = {}): PipelineBuildAction {
-    return new PipelineBuildAction(this, name, {
-      stage,
+  public asCodePipelineAction(actionName: string, props: CommonPipelineBuildActionProps): PipelineBuildAction {
+    return new PipelineBuildAction(actionName, {
       project: this,
       ...props,
     });
@@ -222,9 +220,8 @@ export abstract class ProjectBase extends cdk.Construct implements IProject {
    * @param props the properties of the new Action
    * @returns the newly created {@link PipelineBuildAction} test Action
    */
-  public addToPipelineAsTest(stage: codepipeline.IStage, name: string, props: CommonPipelineTestActionProps = {}): PipelineTestAction {
-    return new PipelineTestAction(this, name, {
-      stage,
+  public asCodePipelineTestAction(actionName: string, props: CommonPipelineTestActionProps): PipelineTestAction {
+    return new PipelineTestAction(actionName, {
       project: this,
       ...props,
     });

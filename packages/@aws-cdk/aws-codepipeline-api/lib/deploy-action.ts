@@ -1,22 +1,21 @@
-import cdk = require('@aws-cdk/cdk');
-import { Action, ActionArtifactBounds, ActionCategory, CommonActionConstructProps, CommonActionProps } from "./action";
+import { Action, ActionArtifactBounds, ActionCategory, CommonActionProps } from "./action";
 import { Artifact } from './artifact';
 
-export interface DeployActionProps extends CommonActionProps, CommonActionConstructProps {
+export interface DeployActionProps extends CommonActionProps {
   provider: string;
 
   owner?: string;
 
   artifactBounds: ActionArtifactBounds;
 
-  inputArtifact?: Artifact;
+  inputArtifact: Artifact;
 
   configuration?: any;
 }
 
 export abstract class DeployAction extends Action {
-  constructor(scope: cdk.Construct, id: string, props: DeployActionProps) {
-    super(scope, id, {
+  constructor(name: string, props: DeployActionProps) {
+    super(name, {
       category: ActionCategory.Deploy,
       ...props,
     });

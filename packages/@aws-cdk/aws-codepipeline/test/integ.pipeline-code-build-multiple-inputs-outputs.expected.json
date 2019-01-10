@@ -259,7 +259,7 @@
                 "Name": "Source1",
                 "OutputArtifacts": [
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepoSource1FB3F9DF8"
+                    "Name": "Artifact_Source1_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepo8C065AEB"
                   }
                 ],
                 "RunOrder": 1
@@ -282,7 +282,7 @@
                 "Name": "Source2",
                 "OutputArtifacts": [
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketSource22F03F24C"
+                    "Name": "Artifact_Source2_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketF8E74713"
                   }
                 ],
                 "RunOrder": 1
@@ -303,20 +303,20 @@
                   "ProjectName": {
                     "Ref": "MyBuildProject30DB9D6E"
                   },
-                  "PrimarySource": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepoSource1FB3F9DF8"
+                  "PrimarySource": "Artifact_Source1_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepo8C065AEB"
                 },
                 "InputArtifacts": [
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepoSource1FB3F9DF8"
+                    "Name": "Artifact_Source1_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepo8C065AEB"
                   },
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketSource22F03F24C"
+                    "Name": "Artifact_Source2_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketF8E74713"
                   }
                 ],
                 "Name": "Build1",
                 "OutputArtifacts": [
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBuildProjectBuild121179895"
+                    "Name": "Artifact_Build1_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBuildProject66A94291"
                   },
                   {
                     "Name": "CustomOutput1"
@@ -335,14 +335,14 @@
                   "ProjectName": {
                     "Ref": "MyBuildProject30DB9D6E"
                   },
-                  "PrimarySource": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketSource22F03F24C"
+                  "PrimarySource": "Artifact_Source2_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketF8E74713"
                 },
                 "InputArtifacts": [
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketSource22F03F24C"
+                    "Name": "Artifact_Source2_awscdkcodepipelinecodebuildmultipleinputsoutputsMyBucketF8E74713"
                   },
                   {
-                    "Name": "Artifact_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepoSource1FB3F9DF8"
+                    "Name": "Artifact_Source1_awscdkcodepipelinecodebuildmultipleinputsoutputsMyRepo8C065AEB"
                   }
                 ],
                 "Name": "Build2",

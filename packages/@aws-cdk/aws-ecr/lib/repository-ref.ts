@@ -1,4 +1,3 @@
-import codepipeline = require('@aws-cdk/aws-codepipeline-api');
 import events = require('@aws-cdk/aws-events');
 import iam = require('@aws-cdk/aws-iam');
 import cdk = require('@aws-cdk/cdk');
@@ -49,8 +48,8 @@ export interface IRepository extends cdk.IConstruct {
    * @param props the optional construction properties of the new Action
    * @returns the newly created {@link PipelineSourceAction}
    */
-  addToPipeline(stage: codepipeline.IStage, name: string, props?: CommonPipelineSourceActionProps):
-      PipelineSourceAction;
+  asCodePipelineAction(actionName: string, props?: CommonPipelineSourceActionProps):
+      PipelineSourceAction
 
   /**
    * Grant the given principal identity permissions to perform the actions on this repository
@@ -173,10 +172,8 @@ export abstract class RepositoryBase extends cdk.Construct implements IRepositor
    */
   public abstract export(): RepositoryImportProps;
 
-  public addToPipeline(stage: codepipeline.IStage, name: string, props: CommonPipelineSourceActionProps = {}):
-      PipelineSourceAction {
-    return new PipelineSourceAction(this, name, {
-      stage,
+  public asCodePipelineAction(actionName: string, props: CommonPipelineSourceActionProps = {}): PipelineSourceAction {
+    return new PipelineSourceAction(actionName, {
       repository: this,
       ...props,
     });

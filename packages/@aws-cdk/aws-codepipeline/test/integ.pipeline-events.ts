@@ -11,25 +11,25 @@ const app = new cdk.App();
 const stack = new cdk.Stack(app, 'aws-cdk-pipeline-event-target');
 
 const pipeline = new codepipeline.Pipeline(stack, 'MyPipeline');
-const sourceStage = new codepipeline.Stage(stack, 'Source', { pipeline });
-const buildStage = new codepipeline.Stage(stack, 'Build', { pipeline });
+const sourceStage = new codepipeline.Stage('Source');
+const buildStage = new codepipeline.Stage('Build');
 
 const repository = new codecommit.Repository(stack, 'CodeCommitRepo', {
   repositoryName: 'foo'
 });
 const project = new codebuild.PipelineProject(stack, 'BuildProject');
 
-const sourceAction = new codecommit.PipelineSourceAction(pipeline, 'CodeCommitSource', {
-  stage: sourceStage,
+const sourceAction = new codecommit.PipelineSourceAction('CodeCommitSource', {
   outputArtifactName: 'Source',
   repository,
   pollForSourceChanges: true,
 });
-new codebuild.PipelineBuildAction(stack, 'CodeBuildAction', {
-  stage: buildStage,
+pipeline.addStage(sourceStage.addAction(sourceAction));
+
+pipeline.addStage(buildStage.addAction(new codebuild.PipelineBuildAction('CodeBuildAction', {
   inputArtifact: sourceAction.outputArtifact,
   project
-});
+})));
 
 const topic = new sns.Topic(stack, 'MyTopic');
 

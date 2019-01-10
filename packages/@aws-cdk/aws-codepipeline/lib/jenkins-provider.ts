@@ -17,7 +17,7 @@ import {
  * If you want to reference an already registered provider,
  * use the {@link JenkinsProvider#import} method.
  */
-export interface IJenkinsProvider {
+export interface IJenkinsProvider extends cdk.IConstruct {
   readonly providerName: string;
   readonly serverUrl: string;
   readonly version: string;
@@ -31,7 +31,7 @@ export interface IJenkinsProvider {
    * @param props construction properties of the new Action
    * @returns the newly created {@link JenkinsBuildAction}
    */
-  addToPipeline(stage: cpapi.IStage, name: string, props: BasicJenkinsBuildActionProps):
+  asCodePipelineAction(actionName: string, props: BasicJenkinsBuildActionProps):
       JenkinsBuildAction;
 
   /**
@@ -43,7 +43,7 @@ export interface IJenkinsProvider {
    * @param props construction properties of the new Action
    * @returns the newly created {@link JenkinsTestAction}
    */
-  addToPipelineAsTest(stage: cpapi.IStage, name: string, props: BasicJenkinsTestActionProps):
+  asCodePipelineTestAction(actionName: string, props: BasicJenkinsTestActionProps):
       JenkinsTestAction;
 
   /**
@@ -149,19 +149,15 @@ export abstract class BaseJenkinsProvider extends cdk.Construct implements IJenk
     };
   }
 
-  public addToPipeline(stage: cpapi.IStage, name: string, props: BasicJenkinsBuildActionProps):
-      JenkinsBuildAction {
-    return new JenkinsBuildAction(this, name, {
-      stage,
+  public asCodePipelineAction(actionName: string, props: BasicJenkinsBuildActionProps): JenkinsBuildAction {
+    return new JenkinsBuildAction(actionName, {
       jenkinsProvider: this,
       ...props,
     });
   }
 
-  public addToPipelineAsTest(stage: cpapi.IStage, name: string, props: BasicJenkinsTestActionProps):
-      JenkinsTestAction {
-    return new JenkinsTestAction(this, name, {
-      stage,
+  public asCodePipelineTestAction(actionName: string, props: BasicJenkinsTestActionProps): JenkinsTestAction {
+    return new JenkinsTestAction(actionName, {
       jenkinsProvider: this,
       ...props,
     });

@@ -12,15 +12,19 @@ const pipeline = new codepipeline.Pipeline(stack, 'Pipeline', {
   artifactBucket: bucket,
 });
 
-const sourceStage = pipeline.addStage('Source');
-bucket.addToPipeline(sourceStage, 'S3', {
+const sourceStage = new codepipeline.Stage('Source');
+sourceStage.addAction(new s3.PipelineSourceAction('S3', {
+  bucket,
   bucketKey: 'file.zip',
-});
+}));
 
-const approveStage = pipeline.addStage('Approve');
-new codepipeline.ManualApprovalAction(stack, 'ManualApproval', {
-  stage: approveStage,
-  notifyEmails: ['adamruka85@gmail.com']
-});
+const approveStage = new codepipeline.Stage('Approve');
+approveStage.addAction(new codepipeline.ManualApprovalAction('ManualApproval', {
+  notifyEmails: ['adamruka85@gmail.com'],
+}));
+
+pipeline
+  .addStage(sourceStage)
+  .addStage(approveStage);
 
 app.run();

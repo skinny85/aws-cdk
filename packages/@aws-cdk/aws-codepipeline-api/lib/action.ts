@@ -37,37 +37,6 @@ export function defaultBounds(): ActionArtifactBounds {
 }
 
 /**
- * The API of Stage used internally by the CodePipeline Construct.
- * You should never need to call any of the methods inside of it yourself.
- */
-export interface IInternalStage {
-  /**
-   * Adds an Action to this Stage.
-   *
-   * @param action the Action to add to this Stage
-   */
-  _attachAction(action: Action): void;
-
-  /**
-   * Generates a unique output artifact name for the given Action.
-   *
-   * @param action the Action to generate the output artifact name for
-   */
-  _generateOutputArtifactName(action: Action): string;
-
-  /**
-   * Finds an input artifact for the given Action.
-   * The chosen artifact will be the output artifact of the
-   * last Action in the Pipeline
-   * (up to the Stage this Action belongs to)
-   * with the highest runOrder that has an output artifact.
-   *
-   * @param action the Action to find the input artifact for
-   */
-  _findInputArtifact(action: Action): Artifact;
-}
-
-/**
  * The abstract view of an AWS CodePipeline as required and used by Actions.
  * It extends {@link events.IEventRuleTarget},
  * so this interface can be used as a Target for CloudWatch Events.
@@ -106,22 +75,15 @@ export interface IPipeline extends cdk.IConstruct, events.IEventRuleTarget {
 /**
  * The abstract interface of a Pipeline Stage that is used by Actions.
  */
-export interface IStage extends cdk.IConstruct {
+export interface IStage {
   /**
    * The physical, human-readable name of this Pipeline Stage.
    */
-  readonly name: string;
+  readonly stageName: string;
 
-  /**
-   * The Pipeline this Stage belongs to.
-   */
-  readonly pipeline: IPipeline;
-
-  /**
-   * The API of Stage used internally by the CodePipeline Construct.
-   * You should never need to call any of the methods inside of it yourself.
-   */
-  readonly _internal: IInternalStage;
+  readonly actions: Action[];
+  addAction(action: Action): IStage;
+  render(): any;
 }
 
 /**
@@ -139,19 +101,9 @@ export interface CommonActionProps {
 }
 
 /**
- * Common properties shared by all Action Constructs.
- */
-export interface CommonActionConstructProps {
-  /**
-   * The Pipeline Stage to add this Action to.
-   */
-  stage: IStage;
-}
-
-/**
  * Construction properties of the low-level {@link Action Action class}.
  */
-export interface ActionProps extends CommonActionProps, CommonActionConstructProps {
+export interface ActionProps extends CommonActionProps {
   category: ActionCategory;
   provider: string;
 
@@ -173,7 +125,7 @@ export interface ActionProps extends CommonActionProps, CommonActionConstructPro
  * It is recommended that concrete types are used instead, such as {@link codecommit.PipelineSourceAction} or
  * {@link codebuild.PipelineBuildAction}.
  */
-export abstract class Action extends cdk.Construct {
+export abstract class Action {
   /**
    * The category of the action.
    * The category defines which action type the owner
@@ -215,16 +167,18 @@ export abstract class Action extends cdk.Construct {
 
   public readonly owner: string;
   public readonly version: string;
+  public readonly actionName: string;
 
   private readonly _actionInputArtifacts = new Array<Artifact>();
   private readonly _actionOutputArtifacts = new Array<Artifact>();
   private readonly artifactBounds: ActionArtifactBounds;
-  private readonly stage: IStage;
 
-  constructor(scope: cdk.Construct, id: string, props: ActionProps) {
-    super(scope, id);
+  private pipeline?: IPipeline;
+  private stage?: IStage;
+  private parent?: cdk.Construct;
 
-    validation.validateName('Action', id);
+  constructor(actionName: string, props: ActionProps) {
+    validation.validateName('Action', actionName);
 
     this.owner = props.owner || 'AWS';
     this.version = props.version || '1';
@@ -234,9 +188,7 @@ export abstract class Action extends cdk.Construct {
     this.configuration = props.configuration;
     this.artifactBounds = props.artifactBounds;
     this.runOrder = props.runOrder === undefined ? 1 : props.runOrder;
-    this.stage = props.stage;
-
-    this.stage._internal._attachAction(this);
+    this.actionName = actionName;
   }
 
   public validate(): string[] {
@@ -248,15 +200,15 @@ export abstract class Action extends cdk.Construct {
   }
 
   public onStateChange(name: string, target?: events.IEventRuleTarget, options?: events.EventRuleProps) {
-    const rule = new events.EventRule(this, name, options);
+    const rule = new events.EventRule(this.getParent('onStateChange'), name, options);
     rule.addTarget(target);
     rule.addEventPattern({
       detailType: [ 'CodePipeline Stage Execution State Change' ],
       source: [ 'aws.codepipeline' ],
-      resources: [ this.stage.pipeline.pipelineArn ],
+      resources: [ this.pipeline!.pipelineArn ],
       detail: {
-        stage: [ this.stage.name ],
-        action: [ this.node.id ],
+        stage: [ this.stage!.stageName ],
+        action: [ this.actionName ],
       },
     });
     return rule;
@@ -270,15 +222,39 @@ export abstract class Action extends cdk.Construct {
     return this._actionOutputArtifacts.slice();
   }
 
-  protected addOutputArtifact(name: string = this.stage._internal._generateOutputArtifactName(this)): Artifact {
-    const artifact = new Artifact(this, name);
+  protected addOutputArtifact(name: string): Artifact {
+    const artifact = new Artifact(name);
     this._actionOutputArtifacts.push(artifact);
     return artifact;
   }
 
-  protected addInputArtifact(artifact: Artifact = this.stage._internal._findInputArtifact(this)): Action {
+  protected addInputArtifact(artifact: Artifact): Action {
     this._actionInputArtifacts.push(artifact);
     return this;
+  }
+
+  protected abstract bind(pipeline: IPipeline, parent: cdk.Construct): void;
+
+  // ignore unused private method (it's actually used in Stage)
+  // @ts-ignore
+  private _attachActionToPipeline(pipeline: IPipeline, stage: IStage, parent: cdk.Construct): void {
+    // ToDo add some validations that this wasn't called multiple times
+
+    this.pipeline = pipeline;
+    this.stage = stage;
+    this.parent = parent;
+
+    this.bind(pipeline, parent);
+
+    (stage as any)._actionAddedToStage(this);
+  }
+
+  private getParent(methodName: string): cdk.Construct {
+    if (this.parent) {
+      return this.parent;
+    } else {
+      throw new Error(`Cannot call method '${methodName}' until the Action has been added to a Pipeline with addAction`);
+    }
   }
 }
 

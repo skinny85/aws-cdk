@@ -5,8 +5,7 @@ import cdk = require('@aws-cdk/cdk');
 /**
  * Properties common to all CloudFormation actions
  */
-export interface PipelineCloudFormationActionProps extends codepipeline.CommonActionProps,
-    codepipeline.CommonActionConstructProps {
+export interface PipelineCloudFormationActionProps extends codepipeline.CommonActionProps {
   /**
    * The name of the stack to apply this action to
    */
@@ -57,9 +56,8 @@ export abstract class PipelineCloudFormationAction extends codepipeline.Action {
    */
   public outputArtifact?: codepipeline.Artifact;
 
-  constructor(scope: cdk.Construct, id: string, props: PipelineCloudFormationActionProps, configuration?: any) {
-    super(scope, id, {
-      stage: props.stage,
+  constructor(actionName: string, props: PipelineCloudFormationActionProps, configuration?: any) {
+    super(actionName, {
       runOrder: props.runOrder,
       region: props.region,
       artifactBounds: {
@@ -79,7 +77,7 @@ export abstract class PipelineCloudFormationAction extends codepipeline.Action {
 
     if (props.outputFileName) {
       this.outputArtifact = this.addOutputArtifact(props.outputArtifactName ||
-        (props.stage.name + this.node.id + 'Artifact'));
+        (`${actionName}_${props.stackName}_Artifact`));
     }
   }
 }
@@ -98,14 +96,20 @@ export interface PipelineExecuteChangeSetActionProps extends PipelineCloudFormat
  * CodePipeline action to execute a prepared change set.
  */
 export class PipelineExecuteChangeSetAction extends PipelineCloudFormationAction {
-  constructor(scope: cdk.Construct, id: string, props: PipelineExecuteChangeSetActionProps) {
-    super(scope, id, props, {
+  private readonly props: PipelineExecuteChangeSetActionProps;
+
+  constructor(actionName: string, props: PipelineExecuteChangeSetActionProps) {
+    super(actionName, props, {
       ActionMode: 'CHANGE_SET_EXECUTE',
       ChangeSetName: props.changeSetName,
     });
 
-    SingletonPolicy.forRole(props.stage.pipeline.role)
-                   .grantExecuteChangeSet(props);
+    this.props = props;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, _parent: cdk.Construct): void {
+    SingletonPolicy.forRole(pipeline.role)
+      .grantExecuteChangeSet(this.props);
   }
 }
 
@@ -194,11 +198,12 @@ export interface PipelineCloudFormationDeployActionProps extends PipelineCloudFo
  * Base class for all CloudFormation actions that execute or stage deployments.
  */
 export abstract class PipelineCloudFormationDeployAction extends PipelineCloudFormationAction {
-  public readonly role: iam.IRole;
+  private _role?: iam.IRole;
+  private readonly props: PipelineCloudFormationDeployActionProps;
 
-  constructor(scope: cdk.Construct, id: string, props: PipelineCloudFormationDeployActionProps, configuration: any) {
+  constructor(actionName: string, props: PipelineCloudFormationDeployActionProps, configuration: any) {
     const capabilities = props.adminPermissions && props.capabilities === undefined ? CloudFormationCapabilities.NamedIAM : props.capabilities;
-    super(scope, id, props, {
+    super(actionName, props, {
       ...configuration,
       // None evaluates to empty string which is falsey and results in undefined
       Capabilities: (capabilities && capabilities.toString()) || undefined,
@@ -208,19 +213,7 @@ export abstract class PipelineCloudFormationDeployAction extends PipelineCloudFo
       StackName: props.stackName,
     });
 
-    if (props.role) {
-      this.role = props.role;
-    } else {
-      this.role = new iam.Role(this, 'Role', {
-        assumedBy: new iam.ServicePrincipal('cloudformation.amazonaws.com')
-      });
-
-      if (props.adminPermissions) {
-        this.role.addToPolicy(new iam.PolicyStatement().addAction('*').addAllResources());
-      }
-    }
-
-    SingletonPolicy.forRole(props.stage.pipeline.role).grantPassRole(this.role);
+    this.props = props;
   }
 
   /**
@@ -228,6 +221,27 @@ export abstract class PipelineCloudFormationDeployAction extends PipelineCloudFo
    */
   public addToRolePolicy(statement: iam.PolicyStatement) {
     return this.role.addToPolicy(statement);
+  }
+
+  public get role(): iam.IRole {
+    // ToDo fix this
+    return this._role!;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, parent: cdk.Construct): void {
+    if (this.props.role) {
+      this._role = this.props.role;
+    } else {
+      this._role = new iam.Role(parent, 'Role', {
+        assumedBy: new iam.ServicePrincipal('cloudformation.amazonaws.com')
+      });
+
+      if (this.props.adminPermissions) {
+        this._role.addToPolicy(new iam.PolicyStatement().addAction('*').addAllResources());
+      }
+    }
+
+    SingletonPolicy.forRole(pipeline.role).grantPassRole(this._role);
   }
 }
 
@@ -253,19 +267,28 @@ export interface PipelineCreateReplaceChangeSetActionProps extends PipelineCloud
  * If the change set exists, AWS CloudFormation deletes it, and then creates a new one.
  */
 export class PipelineCreateReplaceChangeSetAction extends PipelineCloudFormationDeployAction {
-  constructor(scope: cdk.Construct, id: string, props: PipelineCreateReplaceChangeSetActionProps) {
-    super(scope, id, props, {
+  private readonly props2: PipelineCreateReplaceChangeSetActionProps;
+
+  constructor(actionName: string, props: PipelineCreateReplaceChangeSetActionProps) {
+    super(actionName, props, {
       ActionMode: 'CHANGE_SET_REPLACE',
       ChangeSetName: props.changeSetName,
       TemplatePath: props.templatePath.location,
     });
 
     this.addInputArtifact(props.templatePath.artifact);
-    if (props.templateConfiguration && props.templateConfiguration.artifact.name !== props.templatePath.artifact.name) {
+    if (props.templateConfiguration &&
+        props.templateConfiguration.artifact.artifactName !== props.templatePath.artifact.artifactName) {
       this.addInputArtifact(props.templateConfiguration.artifact);
     }
 
-    SingletonPolicy.forRole(props.stage.pipeline.role).grantCreateReplaceChangeSet(props);
+    this.props2 = props;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, parent: cdk.Construct): void {
+    super.bind(pipeline, parent);
+
+    SingletonPolicy.forRole(pipeline.role).grantCreateReplaceChangeSet(this.props2);
   }
 }
 
@@ -309,18 +332,27 @@ export interface PipelineCreateUpdateStackActionProps extends PipelineCloudForma
  * troubleshooting them. You would typically choose this mode for testing.
  */
 export class PipelineCreateUpdateStackAction extends PipelineCloudFormationDeployAction {
-  constructor(scope: cdk.Construct, id: string, props: PipelineCreateUpdateStackActionProps) {
-    super(scope, id, props, {
+  private readonly props2: PipelineCreateUpdateStackActionProps;
+
+  constructor(actionName: string, props: PipelineCreateUpdateStackActionProps) {
+    super(actionName, props, {
       ActionMode: props.replaceOnFailure ? 'REPLACE_ON_FAILURE' : 'CREATE_UPDATE',
       TemplatePath: props.templatePath.location
     });
 
     this.addInputArtifact(props.templatePath.artifact);
-    if (props.templateConfiguration && props.templateConfiguration.artifact.name !== props.templatePath.artifact.name) {
+    if (props.templateConfiguration &&
+        props.templateConfiguration.artifact.artifactName !== props.templatePath.artifact.artifactName) {
       this.addInputArtifact(props.templateConfiguration.artifact);
     }
 
-    SingletonPolicy.forRole(props.stage.pipeline.role).grantCreateUpdateStack(props);
+    this.props2 = props;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, parent: cdk.Construct): void {
+    super.bind(pipeline, parent);
+
+    SingletonPolicy.forRole(pipeline.role).grantCreateUpdateStack(this.props2);
   }
 }
 
@@ -338,11 +370,20 @@ export interface PipelineDeleteStackActionProps extends PipelineCloudFormationDe
  * without deleting a stack.
  */
 export class PipelineDeleteStackAction extends PipelineCloudFormationDeployAction {
-  constructor(scope: cdk.Construct, id: string, props: PipelineDeleteStackActionProps) {
-    super(scope, id, props, {
+  private readonly props2: PipelineDeleteStackActionProps;
+
+  constructor(actionName: string, props: PipelineDeleteStackActionProps) {
+    super(actionName, props, {
       ActionMode: 'DELETE_ONLY',
     });
-    SingletonPolicy.forRole(props.stage.pipeline.role).grantDeleteStack(props);
+
+    this.props2 = props;
+  }
+
+  protected bind(pipeline: codepipeline.IPipeline, parent: cdk.Construct): void {
+    super.bind(pipeline, parent);
+
+    SingletonPolicy.forRole(pipeline.role).grantDeleteStack(this.props2);
   }
 }
 

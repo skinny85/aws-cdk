@@ -7,20 +7,22 @@ const app = new cdk.App();
 
 const stack = new cdk.Stack(app, 'aws-cdk-codepipeline-ecr-source');
 
+const repository = new ecr.Repository(stack, 'MyEcrRepo');
+const sourceStage = new codepipeline.Stage('Source');
+sourceStage.addAction(repository.asCodePipelineAction('ECR_Source'));
+
+const approveStage = new codepipeline.Stage('Approve');
+approveStage.addAction(new codepipeline.ManualApprovalAction('ManualApproval'));
+
 const bucket = new s3.Bucket(stack, 'MyBucket', {
   removalPolicy: cdk.RemovalPolicy.Destroy,
 });
-const pipeline = new codepipeline.Pipeline(stack, 'MyPipeline', {
+new codepipeline.Pipeline(stack, 'MyPipeline', {
   artifactBucket: bucket,
-});
-
-const repository = new ecr.Repository(stack, 'MyEcrRepo');
-const sourceStage = pipeline.addStage('Source');
-repository.addToPipeline(sourceStage, 'ECR_Source');
-
-const approveStage = pipeline.addStage('Approve');
-new codepipeline.ManualApprovalAction(stack, 'ManualApproval', {
-  stage: approveStage,
+  stages: [
+      sourceStage,
+      approveStage,
+  ],
 });
 
 app.run();

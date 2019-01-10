@@ -56,22 +56,18 @@ export = {
     'should fail if Pipeline has a Source Action in a non-first Stage'(test: Test) {
       const stack = new cdk.Stack();
       const pipeline = new Pipeline(stack, 'Pipeline');
-      const firstStage = new Stage(stack, 'FirstStage', { pipeline });
-      const secondStage = new Stage(stack, 'SecondStage', { pipeline });
 
       const bucket = new s3.Bucket(stack, 'PipelineBucket');
-      new s3.PipelineSourceAction(stack, 'FirstAction', {
-        stage: firstStage,
+      pipeline.addStage(new Stage('FirstStage').addAction(new s3.PipelineSourceAction('FirstAction', {
         outputArtifactName: 'FirstArtifact',
         bucket,
         bucketKey: 'key',
-      });
-      new s3.PipelineSourceAction(stack, 'SecondAction', {
-        stage: secondStage,
+      })));
+      pipeline.addStage(new Stage('SecondStage').addAction(new s3.PipelineSourceAction('SecondAction', {
         outputArtifactName: 'SecondAction',
         bucket,
         bucketKey: 'key',
-      });
+      })));
 
       test.deepEqual(pipeline.validate().length, 1);
 
@@ -81,7 +77,5 @@ export = {
 };
 
 function stageForTesting(): Stage {
-  const stack = new cdk.Stack();
-  const pipeline = new Pipeline(stack, 'pipeline');
-  return new Stage(stack, 'stage', { pipeline });
+  return new Stage('stage');
 }

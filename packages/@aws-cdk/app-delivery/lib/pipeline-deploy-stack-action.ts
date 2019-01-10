@@ -120,24 +120,24 @@ export class PipelineDeployStackAction extends cdk.Construct {
     const changeSetName = props.changeSetName || 'CDK-CodePipeline-ChangeSet';
 
     const capabilities = cfnCapabilities(props.adminPermissions, props.capabilities);
-    const changeSetAction = new cfn.PipelineCreateReplaceChangeSetAction(this, 'ChangeSet', {
+    const changeSetAction = new cfn.PipelineCreateReplaceChangeSetAction('ChangeSet', {
       changeSetName,
       runOrder: createChangeSetRunOrder,
       stackName: props.stack.name,
-      stage: props.stage,
       templatePath: props.inputArtifact.atPath(`${props.stack.name}.template.yaml`),
       adminPermissions: props.adminPermissions,
       role: props.role,
       capabilities,
     });
-    this.role = changeSetAction.role;
+    props.stage
+      .addAction(changeSetAction)
+      .addAction(new cfn.PipelineExecuteChangeSetAction('Execute', {
+        changeSetName,
+        runOrder: executeChangeSetRunOrder,
+        stackName: props.stack.name,
+      }));
 
-    new cfn.PipelineExecuteChangeSetAction(this, 'Execute', {
-      changeSetName,
-      runOrder: executeChangeSetRunOrder,
-      stackName: props.stack.name,
-      stage: props.stage,
-    });
+    this.role = changeSetAction.role;
   }
 
   public validate(): string[] {
