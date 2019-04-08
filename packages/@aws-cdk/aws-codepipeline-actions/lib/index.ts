@@ -8,6 +8,7 @@ export * from './ecs/deploy-action';
 export * from './github/source-action';
 export * from './jenkins/jenkins-actions';
 export * from './jenkins/jenkins-provider';
+export * from './lambda/deploy-action';
 export * from './lambda/invoke-action';
 export * from './manual-approval-action';
 export * from './s3/deploy-action';
