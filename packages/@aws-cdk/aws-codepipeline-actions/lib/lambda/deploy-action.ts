@@ -2,6 +2,7 @@ import codepipeline = require('@aws-cdk/aws-codepipeline');
 import iam = require('@aws-cdk/aws-iam');
 import lambda = require('@aws-cdk/aws-lambda');
 import cdk = require('@aws-cdk/cdk');
+import path = require('path');
 
 export interface LambdaDeployActionProps extends codepipeline.CommonActionProps {
   readonly inputArtifact?: codepipeline.Artifact;
@@ -37,29 +38,8 @@ export class LambdaDeployAction extends codepipeline.Action {
 
     this.func = new lambda.Function(info.scope, 'Lambda', {
       runtime: lambda.Runtime.NodeJS810,
-      handler: 'index.handler',
-      code: lambda.Code.inline(`
-        var AWS = require('aws-sdk');
-
-        exports.handler = function (event, context) {
-            var codepipeline = new AWS.CodePipeline();
-
-            // Retrieve the Job ID from the Lambda action
-            var jobId = event["CodePipeline.job"].id;
-
-            // Notify AWS CodePipeline of a successful job
-            var params = {
-                jobId: jobId,
-            };
-            codepipeline.putJobSuccessResult(params, function (err, data) {
-                if (err) {
-                    context.fail(err);
-                } else {
-                    context.succeed("Hello from Lambda!");
-                }
-            });
-        };
-      `),
+      handler: 'lambda-deploy-lambda.handler',
+      code: lambda.Code.asset(path.join(__dirname, '../../resources/lambda-deploy-action')),
     });
 
     // allow Pipeline to invoke this Lambda Function
