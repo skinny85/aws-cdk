@@ -1,6 +1,6 @@
 var AWS = require('aws-sdk');
 
-exports.handler = function (event, context) {
+exports.handler = async function (event, context) {
     console.info("Called with Event: " + JSON.stringify(event, null, 2));
 
     const pipelineEvent = event['CodePipeline.job'];
@@ -15,29 +15,24 @@ exports.handler = function (event, context) {
                 Bucket: s3Location.bucketName,
             },
         });
-        s3.getObject({
-            Key: s3Location.objectKey,
-        }, function (err, data) {
-            if (err) {
-                console.error(err, err.stack);
-            } else {
-                console.log(`S3 data: ${data}`);
-            }
-        });
+        try {
+            const data = await s3.getObject({
+                Key: s3Location.objectKey,
+            }).promise();
+
+            console.log(`S3 data: ${data}`);
+        } catch (err) {
+            console.error(err, err.stack);
+        }
     }
 
-    callPipelineApi(pipelineEvent.id, context);
-};
-
-function callPipelineApi(jobId, context) {
     const codepipeline = new AWS.CodePipeline();
-    codepipeline.putJobSuccessResult({
-        jobId: jobId,
-    }, function (err) {
-        if (err) {
-            context.fail(err);
-        } else {
-            context.succeed('Hello from Lambda!');
-        }
-    });
-}
+    try {
+        await codepipeline.putJobSuccessResult({
+            jobId: pipelineEvent.id,
+        }).promise();
+    } catch (err) {
+        context.fail(err);
+    }
+    context.succeed('Hello from Lambda!');
+};
