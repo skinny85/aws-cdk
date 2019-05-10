@@ -1,6 +1,7 @@
 import codebuild = require('@aws-cdk/aws-codebuild');
 import codecommit = require('@aws-cdk/aws-codecommit');
 import codepipeline = require('@aws-cdk/aws-codepipeline');
+import cloudformation = require('@aws-cdk/aws-cloudformation');
 import lambda = require('@aws-cdk/aws-lambda');
 import cdk = require('@aws-cdk/cdk');
 import codepipeline_actions = require('../lib');
@@ -13,7 +14,14 @@ const lambdaStack = new cdk.Stack(app, 'LambdaStack', {
   // unless you explicitly filter for it
   autoDeploy: false,
 });
-const lambdaCode = lambda.Code.cfnParameters();
+const p1 = new cdk.CfnParameter(lambdaStack, 'P1', {
+  type: 'String',
+});
+const injectedArtifact = cloudformation.fromCodePipelineArtifact(); // maybe this should have a more general name...?
+// const lambdaCode = lambda.Code.cfnParameters();
+const lambdaCode = lambda.Code.cfnParameters(injectedArtifact);
+// const lambdaCode = lambda.Code.fromCodePipelineArtifact(lambdaBuildOutput.s3Coordinates);
+
 new lambda.Function(lambdaStack, 'Lambda', {
   code: lambdaCode,
   handler: 'index.handler',
@@ -124,7 +132,12 @@ pipeline.addStage({
       stackName: 'LambdaStackDeployedName',
       adminPermissions: true,
       parameterOverrides: {
-        ...lambdaCode.assign(lambdaBuildOutput.s3Coordinates),
+        // p2.name: lambdaBuildOutput.s3Coordinates.bucketName,
+        // p1.name: lambdaBuildOutput.s3Coordinates.objectKey,
+        // ...lambdaCode.assign(lambdaBuildOutput.s3Coordinates),
+        injectedArtifact.inject(lambdaBuildOutput.s3Coordinates),
+        ...lambdaBuildOutput.s3Coordinates,
+        // ...blue.assign(lambdaBuildOutput.s3Coordinates),
       },
       extraInputs: [
         lambdaBuildOutput,
