@@ -747,7 +747,7 @@ export class Pipeline extends PipelineBase {
     if (bucketKey) {
       encryptionKey = {
         type: 'KMS',
-        id: bucketKey.keyId,
+        id: bucketKey.keyArn,
       };
     }
 
