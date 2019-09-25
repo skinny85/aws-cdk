@@ -240,6 +240,7 @@ export class Pipeline extends PipelineBase {
 
     // If a role has been provided, use it - otherwise, create a role.
     this.role = props.role || new iam.Role(this, 'Role', {
+      roleName: PhysicalName.GENERATE_IF_NEEDED,
       assumedBy: new iam.ServicePrincipal('codepipeline.amazonaws.com')
     });
 
