@@ -380,7 +380,11 @@ export class Pipeline extends PipelineBase {
       const actionResourceStack = Stack.of(actionResource);
       if (pipelineStack.region !== actionResourceStack.region) {
         actionRegion = actionResourceStack.region;
-        otherStack = actionResourceStack;
+        // if the resource is from a different stack in another region but the same account,
+        // use that stack as home for the cross-region support resources
+        if (pipelineStack.account === actionResourceStack.account) {
+          otherStack = actionResourceStack;
+        }
       }
     } else {
       actionRegion = action.actionProperties.region;
