@@ -154,7 +154,7 @@ export = {
         test.done();
       },
 
-      "generates ArtifactStores with the alias' name as the KeyID"(test: Test) {
+      "generates ArtifactStores with the alias' ARN as the KeyID"(test: Test) {
         const app = new cdk.App();
         const replicationRegion = 'us-west-1';
 
@@ -199,7 +199,7 @@ export = {
                         {
                           "Ref": "AWS::Partition",
                         },
-                        ":kms:us-west-1:123456789012:alias/mystack-support-us-west-1tencryptionalias9b344b2b8e6825cb1f7d",
+                        ":kms:us-west-1:123456789012:alias/s-west-1tencryptionalias9b344b2b8e6825cb1f7d",
                       ],
                     ],
                   },

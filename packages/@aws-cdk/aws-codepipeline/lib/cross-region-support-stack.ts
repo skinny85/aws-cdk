@@ -13,6 +13,11 @@ export class CrossRegionSupportConstruct extends cdk.Construct {
       targetKey: encryptionKey,
       aliasName: cdk.PhysicalName.GENERATE_IF_NEEDED,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      // CodePipeline has an extremely small (100 characters)
+      // limit for the name/ARN of the key in the ArtifactStore.
+      // Because of that, generate a shorter alias name,
+      // so that the alias' ARN fits within 100 characters
+      generatedNameMaxLength: 50,
     });
     this.replicationBucket = new s3.Bucket(this, 'CrossRegionCodePipelineReplicationBucket', {
       bucketName: cdk.PhysicalName.GENERATE_IF_NEEDED,

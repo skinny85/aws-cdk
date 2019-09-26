@@ -50,6 +50,18 @@ export interface AliasProps {
    * @default - The alias will be deleted
    */
   readonly removalPolicy?: RemovalPolicy;
+
+  /**
+   * A property only used when the aliasName property is given the value
+   * PhysicalName.GENERATE_IF_NEEDED.
+   * Allows you to limit the maximum length the generated alias name will have.
+   * Useful if a service does some validation that allows a shorter than the maximum (= 256)
+   * length to be put in a given property that can use the alias' name or ARN,
+   * like CodePipeline's ArtifactStore.EncryptionKey.Id.
+   *
+   * @default - the length will not be truncated
+   */
+  readonly generatedNameMaxLength?: number;
 }
 
 abstract class AliasBase extends Resource implements IAlias {
@@ -122,6 +134,7 @@ export class Alias extends AliasBase {
 
   public readonly aliasName: string;
   public readonly aliasTargetKey: IKey;
+  private readonly _generatedNameMaxLength: number;
 
   constructor(scope: Construct, id: string, props: AliasProps) {
     let aliasName = props.aliasName;
@@ -160,9 +173,19 @@ export class Alias extends AliasBase {
     if (props.removalPolicy) {
       resource.applyRemovalPolicy(props.removalPolicy);
     }
+
+    this._generatedNameMaxLength = props.generatedNameMaxLength || 256;
   }
 
   protected generatePhysicalName(): string {
-    return REQUIRED_ALIAS_PREFIX + super.generatePhysicalName();
+    const maxLength = this._generatedNameMaxLength - REQUIRED_ALIAS_PREFIX.length;
+    // take the last characters, as they include the hash,
+    // and so have a higher chance of not colliding
+    return REQUIRED_ALIAS_PREFIX + lastNCharacters(super.generatePhysicalName(), maxLength);
   }
+}
+
+function lastNCharacters(str: string, n: number) {
+  const startIndex = Math.max(str.length - n, 0);
+  return str.substring(startIndex, str.length);
 }

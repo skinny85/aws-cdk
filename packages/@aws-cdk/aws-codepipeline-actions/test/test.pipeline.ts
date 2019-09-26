@@ -797,7 +797,7 @@ export = {
                       {
                         "Ref": "AWS::Partition",
                       },
-                      ":kms:us-west-1:123456789012:alias/replicationstacktencryptionalias043cb2f8ceac9da9c07c",
+                      ":kms:us-west-1:123456789012:alias/ionstacktencryptionalias043cb2f8ceac9da9c07c",
                     ],
                   ],
                 },
