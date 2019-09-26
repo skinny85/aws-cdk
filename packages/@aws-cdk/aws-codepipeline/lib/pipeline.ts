@@ -732,7 +732,7 @@ export class Pipeline extends PipelineBase {
 
     return Object.entries(this._crossRegionSupport).map(([region, support]) => ({
       region,
-      artifactStore: this.renderArtifactStore(support.replicationBucket, region === primaryRegion),
+      artifactStore: this.renderArtifactStore(support.replicationBucket),
     }));
   }
 
@@ -742,20 +742,16 @@ export class Pipeline extends PipelineBase {
   }
 
   private renderPrimaryArtifactStore(): CfnPipeline.ArtifactStoreProperty {
-    return this.renderArtifactStore(this.artifactBucket, true);
+    return this.renderArtifactStore(this.artifactBucket);
   }
 
-  private renderArtifactStore(bucket: s3.IBucket, useArn: boolean): CfnPipeline.ArtifactStoreProperty {
+  private renderArtifactStore(bucket: s3.IBucket): CfnPipeline.ArtifactStoreProperty {
     let encryptionKey: CfnPipeline.EncryptionKeyProperty | undefined;
     const bucketKey = bucket.encryptionKey;
     if (bucketKey) {
       encryptionKey = {
         type: 'KMS',
-        // Unfortunately, CodePipeline currently only has a 100 character limit
-        // for this field, which is not enough to use an alias ARN here.
-        // So, until that's changed, use the key ID for replication buckets,
-        // and ARN only for the main bucket (which is a Ref anyway)
-        id: useArn ? bucketKey.keyArn : bucketKey.keyId,
+        id: bucketKey.keyArn,
       };
     }
 
