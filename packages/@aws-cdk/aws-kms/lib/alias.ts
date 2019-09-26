@@ -163,12 +163,6 @@ export class Alias extends AliasBase {
   }
 
   protected generatePhysicalName(): string {
-    // temporary hack to work around CodePipeline's 100 character limit in KMS ID
-    return REQUIRED_ALIAS_PREFIX + lastNCharacters(super.generatePhysicalName(), 59);
+    return REQUIRED_ALIAS_PREFIX + super.generatePhysicalName();
   }
-}
-
-function lastNCharacters(str: string, n: number) {
-  const startIndex = Math.max(str.length - n, 0);
-  return str.substring(startIndex, str.length);
 }
