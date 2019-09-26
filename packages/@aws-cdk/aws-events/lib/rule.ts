@@ -224,12 +224,14 @@ export class Rule extends Resource implements IRule {
 
         // The actual rule lives in the target stack.
         // Other than the account, it's identical to this one
-        new Rule(targetStack, `${this.node.uniqueId}-${id}`, {
+        const rule = new Rule(targetStack, `${this.node.uniqueId}-${id}`, {
           targets: [target],
-          eventPattern: this.eventPattern,
           schedule: this.scheduleExpression ? Schedule.expression(this.scheduleExpression) : undefined,
           description: this.description,
         });
+        // eventPattern is mutable through addEventPattern(), so we need to lazy evaluate it
+        // but only Tokens can be lazy in the framework, so do this magical hack instead
+        (rule as any).eventPattern = this.eventPattern;
 
         return;
       }

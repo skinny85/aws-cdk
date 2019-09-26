@@ -586,11 +586,7 @@ export = {
           region: 'us-west-2',
         },
       });
-      const rule = new Rule(sourceStack, 'Rule', {
-        eventPattern: {
-          source: ['some-event'],
-        },
-      });
+      const rule = new Rule(sourceStack, 'Rule');
 
       const targetAccount = '234567890123';
       const targetStack = new cdk.Stack(app, 'TargetStack', {
@@ -604,6 +600,10 @@ export = {
 
       rule.addTarget(new SomeTarget('T1', resource1));
       rule.addTarget(new SomeTarget('T2', resource2));
+
+      rule.addEventPattern({
+        source: ['some-event'],
+      });
 
       expect(sourceStack).to(haveResourceLike('AWS::Events::Rule', {
         "EventPattern": {
