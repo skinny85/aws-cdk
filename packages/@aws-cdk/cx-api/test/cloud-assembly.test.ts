@@ -158,3 +158,13 @@ test('displayName shows both artifact ID and stack name if needed', () => {
   expect(art1.id).toBe('MyStackName');
   expect(art1.stackName).toBe('MyStackName');
 });
+
+test("assumeRole and passRole from Stack properties are added to the Stack's Environment", () => {
+  const cloudAssembly = new CloudAssembly(path.join(FIXTURES, 'roles'));
+  const stack = cloudAssembly.getStackByName('Stack1');
+
+  expect(stack.environment).toMatchObject({
+    assumeRole: 'arn:aws:iam::123456789012:role/assumed-deployment-role',
+    passRole: 'arn:aws:iam::123456789012:role/passed-cfn-deployment-role',
+  });
+});

@@ -63,8 +63,8 @@ export class CloudFormationStackArtifact extends CloudArtifact {
     if (!artifact.environment) {
       throw new Error('Invalid CloudFormation stack artifact. Missing environment');
     }
-    this.environment = EnvironmentUtils.parse(artifact.environment);
     const properties = (this.manifest.properties || {}) as AwsCloudFormationStackProperties;
+    this.environment = EnvironmentUtils.parse(artifact.environment, properties.assumeRole, properties.passRole);
     this.templateFile = properties.templateFile;
     this.parameters = properties.parameters || { };
 

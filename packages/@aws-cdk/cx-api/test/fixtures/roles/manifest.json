@@ -1,0 +1,14 @@
+{
+  "version": "1.10.0",
+  "artifacts": {
+    "Stack1": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://123456789012/us-region-1",
+      "properties": {
+        "templateFile": "template.json",
+        "assumeRole": "arn:aws:iam::123456789012:role/assumed-deployment-role",
+        "passRole": "arn:aws:iam::123456789012:role/passed-cfn-deployment-role"
+      }
+    }
+  }
+}

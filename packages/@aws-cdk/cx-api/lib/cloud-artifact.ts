@@ -74,6 +74,25 @@ export interface AwsCloudFormationStackProperties {
    * @default - name derived from artifact ID
    */
   readonly stackName?: string;
+
+  /**
+   * The IAM role to assume before performing SDK calls to deploy this stack
+   * (like CreateChangeSet).
+   *
+   * @default - no role will be assumed - the default credentials of the CLI will be used
+   */
+  readonly assumeRole?: string;
+
+  /**
+   * The IAM role to pass to CloudFormation to actually perform the deployment of this stack.
+   * Since this is usually a role with very wide permissions
+   * (most likely, AdministratorAccess),
+   * it's usually only assumable by the CloudFormation service principal.
+   * This role can be overridden from the CLI by providing the --role-arn option.
+   *
+   * @default - no role will be passed to CloudFormation - the default CLI credentials, or the --role-arn, will be used
+   */
+  readonly passRole?: string;
 }
 
 /**
