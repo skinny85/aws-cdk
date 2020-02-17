@@ -177,7 +177,24 @@
     "cdk-build-tools": "1.24.0",
     "cdk-integ-tools": "1.24.0",
     "jest": "^24.9.0",
-    "pkglint": "1.24.0"
+    "pkglint": "1.24.0",
+    "ts-jest": "^25.2.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "ts"
+    ],
+    "collectCoverage": true,
+    "coverageReporters": [
+      "lcov",
+      "html",
+      "text-summary"
+    ],
+    "preset": "ts-jest",
+    "testMatch": [
+      "**/?(*.)+(test).ts"
+    ]
   },
   "keywords": [
     "aws",
