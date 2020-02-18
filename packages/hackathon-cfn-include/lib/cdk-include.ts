@@ -18,7 +18,7 @@ export class CdkInclude {
       if (!fs.existsSync(path.resolve(jsiiModuleDir, '.jsii'))) {
         continue;
       }
-      loadPromises.push(typeSystem.load(jsiiModuleDir, { validate: true }));
+      loadPromises.push(typeSystem.load(jsiiModuleDir, { validate: false }));
     }
     await Promise.all(loadPromises);
 
