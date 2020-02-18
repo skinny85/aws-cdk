@@ -40,9 +40,36 @@ describe('CDK Include', () => {
       },
     });
   });
+
+  test('can ingest a template with only an S3 Bucket with complex properties, and output it unchanged', () => {
+    const stack = new core.Stack();
+
+    const cfnTemplate = includeJsonTemplate(stack, 'only-bucket-complex-props.json');
+    const bucket = cfnTemplate.getResource('Bucket') as s3.CfnBucket;
+
+    expect((bucket.corsConfiguration as any).corsRules).toHaveLength(1);
+    expect(stack).toMatchTemplate({
+      "Resources": {
+        "Bucket": {
+          "Type": "AWS::S3::Bucket",
+          "Properties": {
+            "CorsConfiguration": {
+              "CorsRules": [
+                {
+                  "AllowedMethods": ["GET"],
+                  "AllowedOrigins": ["*"],
+                  "MaxAge": 10,
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+  });
 });
 
-function includeJsonTemplate(stack: core.Construct, testTemplate: string): ICfnTemplate {
-  return CdkInclude.includeJsonTemplate(stack,
+function includeJsonTemplate(scope: core.Construct, testTemplate: string): ICfnTemplate {
+  return CdkInclude.includeJsonTemplate(scope,
     path.join(__dirname, 'test-templates', testTemplate));
 }

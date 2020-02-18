@@ -19,11 +19,31 @@ export class CdkInclude {
         const [moduleName, ...className] = l1ClassFqn.split('.');
         const module = require(moduleName);
         const jsClassFromModule = module[className.join('.')];
-        resources[logicalId] = new jsClassFromModule(scope, logicalId);
+        resources[logicalId] = new jsClassFromModule(scope, logicalId,
+          this.template2JsValue((resourceConfig as any).Properties));
       }
     }
 
     return new CfnTemplate(resources);
+  }
+
+  private static template2JsValue(value: any): any {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value.map(el => this.template2JsValue(el));
+    }
+    if (typeof value === 'object') {
+      const ret: any = {};
+      for (const [key, val] of Object.entries(value)) {
+        ret[lowercase(key)] = this.template2JsValue(val);
+      }
+      return ret;
+    }
   }
 }
 
@@ -38,4 +58,10 @@ class CfnTemplate implements ICfnTemplate {
     }
     return ret;
   }
+}
+
+function lowercase(str: string): string {
+  return str.length < 1
+    ? str
+    : str.substring(0, 1).toLowerCase() + str.substring(1);
 }
