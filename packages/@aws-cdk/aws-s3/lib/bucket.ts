@@ -982,6 +982,25 @@ export class Bucket extends BucketBase {
     return new Import(scope, id);
   }
 
+  public static fromCfnBucket(bucket: CfnBucket): IBucket {
+    class L2BucketFromL1 extends BucketBase {
+      public readonly bucketArn = bucket.attrArn;
+      public readonly bucketName = bucket.ref;
+      public readonly bucketDomainName = bucket.attrDomainName;
+      public readonly bucketDualStackDomainName = bucket.attrDualStackDomainName;
+      public readonly bucketRegionalDomainName = bucket.attrRegionalDomainName;
+      public readonly bucketWebsiteUrl = bucket.attrWebsiteUrl;
+      public readonly bucketWebsiteDomainName = Fn.select(2, Fn.split('/', bucket.attrWebsiteUrl));
+      public readonly encryptionKey = undefined;
+      public policy = undefined;
+      protected autoCreatePolicy = false;
+      protected disallowPublicAccess = bucket.publicAccessBlockConfiguration &&
+        (bucket.publicAccessBlockConfiguration as any).blockPublicPolicy;
+    }
+
+    return new L2BucketFromL1(bucket, 'Bucket');
+  }
+
   public readonly bucketArn: string;
   public readonly bucketName: string;
   public readonly bucketDomainName: string;

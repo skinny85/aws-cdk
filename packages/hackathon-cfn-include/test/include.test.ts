@@ -1,4 +1,5 @@
 import '@aws-cdk/assert/jest';
+import * as iam from '@aws-cdk/aws-iam';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as core from '@aws-cdk/core';
 import * as path from 'path';
@@ -64,6 +65,86 @@ describe('CDK Include', () => {
             },
           },
         },
+      },
+    });
+  });
+
+  test('allows referring to a bucket defined in the template in your CDK code', () => {
+    const stack = new core.Stack();
+
+    const cfnTemplate = includeJsonTemplate(stack, 'only-empty-bucket.json');
+    const bucket = cfnTemplate.getResource('Bucket') as s3.CfnBucket;
+
+    const role = new iam.Role(stack, 'Role', {
+      assumedBy: new iam.AnyPrincipal(),
+    });
+    role.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:*'],
+      resources: [bucket.attrArn],
+    }));
+
+    expect(stack).toHaveResourceLike('AWS::IAM::Policy', {
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": "s3:*",
+            "Resource": {
+              "Fn::GetAtt": [
+                "Bucket",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  test('allows creating an L2 Bucket from the L1 Bucket extracted from the ingested template', () => {
+    const stack = new core.Stack();
+
+    const cfnTemplate = includeJsonTemplate(stack, 'only-empty-bucket.json');
+    const cfnBucket = cfnTemplate.getResource('Bucket') as s3.CfnBucket;
+    const bucket = s3.Bucket.fromCfnBucket(cfnBucket);
+
+    const role = new iam.Role(stack, 'Role', {
+      assumedBy: new iam.AnyPrincipal(),
+    });
+    bucket.grantRead(role);
+
+    expect(stack).toHaveResourceLike('AWS::IAM::Policy', {
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*",
+            ],
+            "Resource": [
+              {
+                "Fn::GetAtt": [
+                  "Bucket",
+                  "Arn",
+                ],
+              },
+              {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "Bucket",
+                        "Arn",
+                      ],
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            ],
+          },
+        ],
       },
     });
   });
