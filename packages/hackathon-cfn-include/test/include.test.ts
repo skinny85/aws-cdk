@@ -5,11 +5,13 @@ import { CdkInclude } from '../lib';
 
 // tslint:disable:object-literal-key-quotes
 
+jest.setTimeout(600_000); // loading the JSII type system is slooooooow
+
 describe('CDK Include', () => {
-  test('can ingest a template with only an S3 Bucket, and output it unchanged', () => {
+  test('can ingest a template with only an S3 Bucket, and output it unchanged', async () => {
     const stack = new core.Stack();
 
-    CdkInclude.includeJsonTemplate(stack,
+    await CdkInclude.includeJsonTemplate(stack,
       path.join(__dirname, 'test-templates', 'only-empty-bucket.json'));
 
     expect(stack).toMatchTemplate({
