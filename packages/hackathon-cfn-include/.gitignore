@@ -14,3 +14,6 @@ coverage
 nyc.config.js
 .LAST_PACKAGE
 *.snk
+
+!cfnTypes2Classes.js
+cfn-types-2-classes.json

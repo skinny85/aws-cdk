@@ -22,6 +22,11 @@
     "build+test": "npm run build && npm test",
     "compat": "cdk-compat"
   },
+  "cdk-build": {
+    "pre": [
+      "node ./cfnTypes2Classes.js"
+    ]
+  },
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com",
@@ -165,7 +170,6 @@
     "@aws-cdk/cx-api": "1.24.0",
     "@aws-cdk/region-info": "1.24.0",
     "fs-extra": "^8.1.0",
-    "jsii-reflect": "^0.22.0",
     "jsonschema": "^1.2.5",
     "yaml": "1.7.2"
   },
