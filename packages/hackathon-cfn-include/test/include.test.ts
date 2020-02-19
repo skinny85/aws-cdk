@@ -184,8 +184,8 @@ describe('CDK Include', () => {
               "Version": "2012-10-17",
             },
           },
-          // "DeletionPolicy": "Delete",
-          // "UpdateReplacePolicy": "Delete",
+          "DeletionPolicy": "Delete",
+          "UpdateReplacePolicy": "Delete",
         },
         "Bucket": {
           "Type": "AWS::S3::Bucket",
@@ -206,8 +206,8 @@ describe('CDK Include', () => {
               ],
             },
           },
-          // "DeletionPolicy": "Retain",
-          // "UpdateReplacePolicy": "Retain",
+          "DeletionPolicy": "Retain",
+          "UpdateReplacePolicy": "Retain",
         },
       },
     });

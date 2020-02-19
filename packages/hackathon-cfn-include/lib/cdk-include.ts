@@ -20,8 +20,20 @@ export class CdkInclude {
         const [moduleName, ...className] = l1ClassFqn.split('.');
         const module = require(moduleName);
         const jsClassFromModule = module[className.join('.')];
-        resources[logicalId] = new jsClassFromModule(scope, logicalId,
+        const l1Instance = new jsClassFromModule(scope, logicalId,
           this.template2JsValue((resourceConfig as any).Properties, true));
+        resources[logicalId] = l1Instance;
+
+        // handle all non-property configuration
+        // (retention policies, conditions, metadata, etc.)
+        const cfnOptions: core.ICfnResourceOptions = l1Instance.cfnOptions;
+        cfnOptions.deletionPolicy = this.toCfnDeletionPolicy((resourceConfig as any).DeletionPolicy);
+        cfnOptions.updateReplacePolicy = this.toCfnDeletionPolicy((resourceConfig as any).UpdateReplacePolicy);
+        // ToDo handle:
+        // 1. Condition
+        // 2. Metadata
+        // 3. CreationPolicy
+        // 4. UpdatePolicy
       }
     }
 
@@ -119,6 +131,16 @@ export class CdkInclude {
         return false;
       default:
         return true;
+    }
+  }
+
+  private static toCfnDeletionPolicy(policy: any): core.CfnDeletionPolicy | undefined {
+    switch (policy) {
+      case undefined: return undefined;
+      case 'Delete': return core.CfnDeletionPolicy.DELETE;
+      case 'Retain': return core.CfnDeletionPolicy.RETAIN;
+      case 'Snapshot': return core.CfnDeletionPolicy.SNAPSHOT;
+      default: throw new Error(`Unrecognized DeletionPolicy '${policy}'`);
     }
   }
 }
