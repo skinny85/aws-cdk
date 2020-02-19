@@ -1,7 +1,7 @@
 import * as events from '@aws-cdk/aws-events';
 import * as iam from '@aws-cdk/aws-iam';
 import * as kms from '@aws-cdk/aws-kms';
-import { Construct, Fn, IResource, Lazy, RemovalPolicy, Resource, Stack, Token } from '@aws-cdk/core';
+import { Construct, Fn, IResource, Lazy, MagicResolvable, RemovalPolicy, Resource, Stack, Token } from '@aws-cdk/core';
 import { EOL } from 'os';
 import { BucketPolicy } from './bucket-policy';
 import { IBucketNotificationDestination } from './destination';
@@ -982,7 +982,24 @@ export class Bucket extends BucketBase {
     return new Import(scope, id);
   }
 
+  /** fromCfnBucket */
   public static fromCfnBucket(bucket: CfnBucket): IBucket {
+    let encryptionKey: kms.IKey | undefined;
+    // take out the encryption key, if it's defined
+    if (bucket.bucketEncryption) {
+      const serverSideEncryptionConfiguration = (bucket.bucketEncryption as any).serverSideEncryptionConfiguration;
+      if (Array.isArray(serverSideEncryptionConfiguration) && serverSideEncryptionConfiguration.length === 1) {
+        const serverSideEncryptionRuleProperty = serverSideEncryptionConfiguration[0];
+        const serverSideEncryptionByDefault = serverSideEncryptionRuleProperty.serverSideEncryptionByDefault;
+        if (serverSideEncryptionByDefault && serverSideEncryptionByDefault.kmsMasterKeyId instanceof MagicResolvable) {
+          const cfnElement = serverSideEncryptionByDefault.kmsMasterKeyId.cfnElement;
+          if (cfnElement instanceof kms.CfnKey) {
+            encryptionKey = kms.Key.fromCfnKey(cfnElement);
+          }
+        }
+      }
+    }
+
     class L2BucketFromL1 extends BucketBase {
       public readonly bucketArn = bucket.attrArn;
       public readonly bucketName = bucket.ref;
@@ -991,9 +1008,9 @@ export class Bucket extends BucketBase {
       public readonly bucketRegionalDomainName = bucket.attrRegionalDomainName;
       public readonly bucketWebsiteUrl = bucket.attrWebsiteUrl;
       public readonly bucketWebsiteDomainName = Fn.select(2, Fn.split('/', bucket.attrWebsiteUrl));
-      public readonly encryptionKey = undefined;
-      public policy = undefined;
-      protected autoCreatePolicy = false;
+      public readonly encryptionKey = encryptionKey;
+      public policy = undefined; // ToDo add policy handling
+      protected autoCreatePolicy = false; // ToDo add policy handling
       protected disallowPublicAccess = bucket.publicAccessBlockConfiguration &&
         (bucket.publicAccessBlockConfiguration as any).blockPublicPolicy;
     }

@@ -10,7 +10,7 @@ import {
 import * as iam from '@aws-cdk/aws-iam';
 import { App, CfnOutput, RemovalPolicy, Stack, Tag } from '@aws-cdk/core';
 import { Test } from 'nodeunit';
-import { Key } from '../lib';
+import { CfnKey, Key } from '../lib';
 
 // tslint:disable:object-literal-key-quotes
 const ACTIONS: string[] = [
@@ -496,6 +496,18 @@ export = {
 
         test.done();
       },
+    },
+
+    'can be imported from CfnKey'(test: Test) {
+      const stack = new Stack();
+      const cfnKey = new CfnKey(stack, 'CfnKey', {
+        keyPolicy: {},
+      });
+      const key = Key.fromCfnKey(cfnKey);
+
+      test.notEqual(key, undefined);
+
+      test.done();
     },
   },
 };

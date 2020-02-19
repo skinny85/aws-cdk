@@ -1,4 +1,5 @@
 import { ICfnConditionExpression } from './cfn-condition';
+import { CfnElement } from "./cfn-element";
 import { minimalCloudFormationJoin } from './private/cloudformation-lang';
 import { Intrinsic } from './private/intrinsic';
 import { Reference } from './reference';
@@ -348,6 +349,20 @@ class FnFindInMap extends FnBase {
    */
   constructor(mapName: string, topLevelKey: any, secondLevelKey: any) {
     super('Fn::FindInMap', [ mapName, topLevelKey, secondLevelKey ]);
+  }
+}
+
+/** Magic resolvable. */
+export class MagicResolvable implements IResolvable {
+  public readonly creationStack: string[];
+
+  /** @param cfnElement cfnElement */
+  constructor(private readonly cfnFunction: IResolvable, public readonly cfnElement: CfnElement) {
+    this.creationStack = this.cfnFunction.creationStack;
+  }
+
+  public resolve(context: IResolveContext): any {
+    return this.cfnFunction.resolve(context);
   }
 }
 

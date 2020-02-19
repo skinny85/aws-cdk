@@ -657,6 +657,16 @@ export = {
 
       test.done();
     },
+
+    'allows importing from CfnBucket'(test: Test) {
+      const stack = new cdk.Stack();
+      const cfnBucket = new s3.CfnBucket(stack, 'CfnBucket');
+      const key = s3.Bucket.fromCfnBucket(cfnBucket);
+
+      test.notEqual(key, undefined);
+
+      test.done();
+    },
   },
 
   'grantRead'(test: Test) {

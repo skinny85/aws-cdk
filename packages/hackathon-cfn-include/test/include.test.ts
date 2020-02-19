@@ -212,6 +212,17 @@ describe('CDK Include', () => {
       },
     });
   });
+
+  test("populates the L2 Bucket's, created from the L1 Bucket extracted from the ingested template, " +
+      "encryptionKey property from the template's Fn::GetAtt expression", () => {
+    const stack = new core.Stack();
+
+    const cfnTemplate = includeJsonTemplate(stack, 'bucket-with-encryption-key.json');
+    const cfnBucket = cfnTemplate.getResource('Bucket') as s3.CfnBucket;
+    const bucket = s3.Bucket.fromCfnBucket(cfnBucket);
+
+    expect(bucket.encryptionKey).toBeDefined();
+  });
 });
 
 function includeJsonTemplate(scope: core.Construct, testTemplate: string): ICfnTemplate {

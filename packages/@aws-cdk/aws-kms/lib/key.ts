@@ -334,6 +334,17 @@ export class Key extends KeyBase {
     return new Import(keyResourceName);
   }
 
+  /** fromCfnKey */
+  public static fromCfnKey(cfnKey: CfnKey): IKey {
+    class L2KeyFromL1 extends KeyBase {
+      public readonly keyArn = cfnKey.attrArn;
+      public readonly keyId = cfnKey.ref;
+      protected readonly policy?: iam.PolicyDocument | undefined = undefined; // ToDo add policy handling
+    }
+
+    return new L2KeyFromL1(cfnKey, 'Key');
+  }
+
   public readonly keyArn: string;
   public readonly keyId: string;
   protected readonly policy?: iam.PolicyDocument;

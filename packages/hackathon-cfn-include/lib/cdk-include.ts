@@ -8,39 +8,69 @@ import { ICfnTemplate } from './cfn-template';
 
 export class CdkInclude {
   public static includeJsonTemplate(scope: core.Construct, filePath: string): ICfnTemplate {
-    const resources: { [logicalId: string]: core.CfnResource } = {};
-
     // read the map of CloudFormation type to their L1 class created by the build script
     const cfnType2L1Class = fs.readJsonSync(path.join(__dirname, '..', 'cfn-types-2-classes.json'));
 
+    // read the template into a JS object
     const template = fs.readJsonSync(filePath);
-    for (const [logicalId, resourceConfig] of Object.entries(template.Resources || {})) {
-      const l1ClassFqn = cfnType2L1Class[(resourceConfig as any).Type];
-      if (l1ClassFqn) {
-        const [moduleName, ...className] = l1ClassFqn.split('.');
-        const module = require(moduleName);
-        const jsClassFromModule = module[className.join('.')];
-        const l1Instance = new jsClassFromModule(scope, logicalId,
-          this.template2JsValue((resourceConfig as any).Properties, true));
-        resources[logicalId] = l1Instance;
 
-        // handle all non-property configuration
-        // (retention policies, conditions, metadata, etc.)
-        const cfnOptions: core.ICfnResourceOptions = l1Instance.cfnOptions;
-        cfnOptions.deletionPolicy = this.toCfnDeletionPolicy((resourceConfig as any).DeletionPolicy);
-        cfnOptions.updateReplacePolicy = this.toCfnDeletionPolicy((resourceConfig as any).UpdateReplacePolicy);
-        // ToDo handle:
-        // 1. Condition
-        // 2. Metadata
-        // 3. CreationPolicy
-        // 4. UpdatePolicy
-      }
+    return new CfnTemplate(scope, cfnType2L1Class, template);
+  }
+}
+
+class CfnTemplate implements ICfnTemplate {
+  private readonly resources: { [logicalId: string]: core.CfnResource } = {};
+
+  constructor(private readonly scope: core.Construct,
+              private readonly cfnType2L1Class: any,
+              private readonly template: any) {
+    for (const logicalId of Object.keys(template.Resources || {})) {
+      this.getOrCreateResource(logicalId);
     }
-
-    return new CfnTemplate(resources);
   }
 
-  private static template2JsValue(value: any, normalizeKeys: boolean): any {
+  public getResource(logicalId: string): core.CfnResource {
+    const ret = this.resources[logicalId];
+    if (!ret) {
+      throw new Error(`Resource with logical ID '${logicalId}' was not found in the template`);
+    }
+    return ret;
+  }
+
+  private getOrCreateResource(logicalId: string): core.CfnResource {
+    const ret = this.resources[logicalId];
+    if (ret) {
+      return ret;
+    }
+    const resourceConfig: any = this.template.Resources[logicalId];
+    // parse the L1
+    const l1ClassFqn = this.cfnType2L1Class[resourceConfig.Type];
+    if (l1ClassFqn) {
+      const [moduleName, ...className] = l1ClassFqn.split('.');
+      const module = require(moduleName);
+      const jsClassFromModule = module[className.join('.')];
+      const l1Instance = new jsClassFromModule(this.scope, logicalId,
+        this.template2JsValue(resourceConfig.Properties, true));
+      this.resources[logicalId] = l1Instance;
+
+      // handle all non-property configuration
+      // (retention policies, conditions, metadata, etc.)
+      const cfnOptions: core.ICfnResourceOptions = l1Instance.cfnOptions;
+      cfnOptions.deletionPolicy = toCfnDeletionPolicy(resourceConfig.DeletionPolicy);
+      cfnOptions.updateReplacePolicy = toCfnDeletionPolicy(resourceConfig.UpdateReplacePolicy);
+      // ToDo handle:
+      // 1. Condition
+      // 2. Metadata
+      // 3. CreationPolicy
+      // 4. UpdatePolicy
+
+      return l1Instance;
+    } else {
+      throw new Error(`Unrecognized CFN type: '${resourceConfig.Type}'`);
+    }
+  }
+
+  private template2JsValue(value: any, normalizeKeys: boolean): any {
     if (value === undefined || value === null) {
       return undefined;
     }
@@ -73,7 +103,7 @@ export class CdkInclude {
     }
   }
 
-  private static serializeIfCfnIntrinsic(object: any, normalizeKeys: boolean): any {
+  private serializeIfCfnIntrinsic(object: any, normalizeKeys: boolean): any {
     const key = this.looksLikeCfnIntrinsic(object);
     switch (key) {
       case undefined:
@@ -86,7 +116,9 @@ export class CdkInclude {
       case 'Fn::GetAtt': {
         // Fn::GetAtt takes a 2-element list as its argument
         const value = object[key];
-        return core.Fn.getAtt(value[0], value[1]);
+        const logicalId = value[0];
+        const getAtt = core.Fn.getAtt(logicalId, value[1]);
+        return new core.MagicResolvable(getAtt, this.getOrCreateResource(logicalId));
       }
       case 'Fn::Join': {
         // Fn::Join takes a 2-element list as its argument,
@@ -98,7 +130,7 @@ export class CdkInclude {
     }
   }
 
-  private static looksLikeCfnIntrinsic(object: object): string | undefined {
+  private looksLikeCfnIntrinsic(object: object): string | undefined {
     const objectKeys = Object.keys(object);
     // a CFN intrinsic is always an object with a single key
     if (objectKeys.length !== 1) {
@@ -109,7 +141,7 @@ export class CdkInclude {
     return key === 'Ref' || key.startsWith('Fn::') ? key : undefined;
   }
 
-  private static specialCaseRefs(value: any): any {
+  private specialCaseRefs(value: any): any {
     switch (value) {
       case 'AWS::AccountId': return core.Aws.ACCOUNT_ID;
       case 'AWS::Region': return core.Aws.REGION;
@@ -123,7 +155,7 @@ export class CdkInclude {
     }
   }
 
-  private static shouldNormalizeKey(key: string): boolean {
+  private shouldNormalizeKey(key: string): boolean {
     switch (key) {
       case 'KeyPolicy':
       case 'PolicyDocument':
@@ -133,28 +165,15 @@ export class CdkInclude {
         return true;
     }
   }
-
-  private static toCfnDeletionPolicy(policy: any): core.CfnDeletionPolicy | undefined {
-    switch (policy) {
-      case undefined: return undefined;
-      case 'Delete': return core.CfnDeletionPolicy.DELETE;
-      case 'Retain': return core.CfnDeletionPolicy.RETAIN;
-      case 'Snapshot': return core.CfnDeletionPolicy.SNAPSHOT;
-      default: throw new Error(`Unrecognized DeletionPolicy '${policy}'`);
-    }
-  }
 }
 
-class CfnTemplate implements ICfnTemplate {
-  constructor(private readonly resources: { [logicalId: string]: core.CfnResource }) {
-  }
-
-  public getResource(logicalId: string): core.CfnResource {
-    const ret = this.resources[logicalId];
-    if (!ret) {
-      throw new Error(`Resource with logical ID '${logicalId}' was found in the template`);
-    }
-    return ret;
+function toCfnDeletionPolicy(policy: any): core.CfnDeletionPolicy | undefined {
+  switch (policy) {
+    case undefined: return undefined;
+    case 'Delete': return core.CfnDeletionPolicy.DELETE;
+    case 'Retain': return core.CfnDeletionPolicy.RETAIN;
+    case 'Snapshot': return core.CfnDeletionPolicy.SNAPSHOT;
+    default: throw new Error(`Unrecognized DeletionPolicy '${policy}'`);
   }
 }
 
