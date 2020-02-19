@@ -1,5 +1,6 @@
 import '@aws-cdk/assert/jest';
 import * as iam from '@aws-cdk/aws-iam';
+import * as kms from '@aws-cdk/aws-kms';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as core from '@aws-cdk/core';
 import * as path from 'path';
@@ -145,6 +146,69 @@ describe('CDK Include', () => {
             ],
           },
         ],
+      },
+    });
+  });
+
+  test('can ingest a template with a Bucket Ref-erencing a KMS Key', () => {
+    const stack = new core.Stack();
+
+    includeJsonTemplate(stack, 'bucket-with-encryption-key.json');
+
+    expect(stack).toMatchTemplate({
+      "Resources": {
+        "Key": {
+          "Type": "AWS::KMS::Key",
+          "Properties": {
+            "KeyPolicy": {
+              "Statement": [
+                {
+                  "Action": [
+                    "kms:*"
+                  ],
+                  "Effect": "Allow",
+                  "Principal": {
+                    "AWS": {
+                      "Fn::Join": ["", [
+                        "arn:",
+                        { "Ref": "AWS::Partition" },
+                        ":iam::",
+                        { "Ref": "AWS::AccountId" },
+                        ":root",
+                      ]],
+                    },
+                  },
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+          },
+          // "DeletionPolicy": "Delete",
+          // "UpdateReplacePolicy": "Delete",
+        },
+        "Bucket": {
+          "Type": "AWS::S3::Bucket",
+          "Properties": {
+            "BucketEncryption": {
+              "ServerSideEncryptionConfiguration": [
+                {
+                  "ServerSideEncryptionByDefault": {
+                    "KMSMasterKeyID": {
+                      "Fn::GetAtt": [
+                        "Key",
+                        "Arn",
+                      ],
+                    },
+                    "SSEAlgorithm": "aws:kms",
+                  },
+                },
+              ],
+            },
+          },
+          // "DeletionPolicy": "Retain",
+          // "UpdateReplacePolicy": "Retain",
+        },
       },
     });
   });
