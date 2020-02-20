@@ -1,12 +1,42 @@
 import * as cdk from '@aws-cdk/core';
 import { AccountPrincipal, AccountRootPrincipal, Anyone, ArnPrincipal, CanonicalUserPrincipal,
-  FederatedPrincipal, IPrincipal, ServicePrincipal, ServicePrincipalOpts } from './principals';
+  FederatedPrincipal, IPrincipal, PrincipalBase, ServicePrincipal, ServicePrincipalOpts } from './principals';
 import { mergePrincipal } from './util';
 
 /**
  * Represents a statement in an IAM policy document.
  */
 export class PolicyStatement {
+  /** fromCfnPolicyStatement */
+  public static fromCfnPolicyStatement(cfnPolicyStatement: any): PolicyStatement {
+    function wrapInArray(elem: any): any[] | undefined {
+      if (!elem) {
+        return undefined;
+      }
+      return Array.isArray(elem) ? elem : [elem];
+    }
+
+    function string2effect(val: any): Effect | undefined {
+      switch (val) {
+        case undefined: return undefined;
+        case 'Allow': return Effect.ALLOW;
+        case 'Deny': return Effect.DENY;
+        default: throw new Error(`Unrecognized IAM Effect: '${val}'`);
+      }
+    }
+
+    return new PolicyStatement({
+      actions: wrapInArray(cfnPolicyStatement.Action),
+      notActions: wrapInArray(cfnPolicyStatement.NotAction),
+      resources: wrapInArray(cfnPolicyStatement.Resource),
+      notResources: wrapInArray(cfnPolicyStatement.NotResource),
+      effect: string2effect(cfnPolicyStatement.Effect),
+      conditions: cfnPolicyStatement.Condition,
+      principals: cfnPolicyStatement.Principal && wrapInArray(PrincipalBase.fromCfnPrincipal(cfnPolicyStatement.Principal)),
+      notPrincipals: cfnPolicyStatement.NotPrincipal && wrapInArray(PrincipalBase.fromCfnPrincipal(cfnPolicyStatement.NotPrincipal)),
+    });
+  }
+
   /**
    * Statement ID for this statement
    */

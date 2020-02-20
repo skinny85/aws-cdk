@@ -54,6 +54,22 @@ export interface IPrincipal extends IGrantable {
  * Base class for policy principals
  */
 export abstract class PrincipalBase implements IPrincipal {
+  /** fromCfnPrincipal */
+  public static fromCfnPrincipal(cfnPrincipal: any): IPrincipal {
+    // the Principal class expects each value to be an array,
+    // and normalizes it later
+    const principalJson: any = {};
+    for (const [key, val] of Object.entries(cfnPrincipal)) {
+      principalJson[key] = Array.isArray(val) ? val : [val];
+    }
+
+    class CfnPrincipal extends PrincipalBase {
+      readonly policyFragment = new PrincipalPolicyFragment(principalJson);
+    }
+
+    return new CfnPrincipal();
+  }
+
   public readonly grantPrincipal: IPrincipal = this;
 
   /**

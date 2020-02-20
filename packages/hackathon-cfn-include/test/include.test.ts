@@ -223,6 +223,47 @@ describe('CDK Include', () => {
 
     expect(bucket.encryptionKey).toBeDefined();
   });
+
+  test('renders changes in the KeyPolicy of the L2 KMS Key, created from the l1 Key extracted from the ingested template', () => {
+    const stack = new core.Stack();
+
+    const cfnTemplate = includeJsonTemplate(stack, 'bucket-with-encryption-key.json');
+    const cfnKey = cfnTemplate.getResource('Key') as kms.CfnKey;
+    const key = kms.Key.fromCfnKey(cfnKey);
+
+    key.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ['s3:*'],
+      principals: [new iam.AnyPrincipal()],
+      resources: ['*'],
+    }));
+
+    expect(stack).toHaveResourceLike('AWS::KMS::Key', {
+      "KeyPolicy": {
+        "Statement": [
+          {
+            "Action": "kms:*",
+            "Principal": {
+              "AWS": {
+                "Fn::Join": ["", [
+                  "arn:",
+                  { "Ref": "AWS::Partition" },
+                  ":iam::",
+                  { "Ref": "AWS::AccountId" },
+                  ":root",
+                ]],
+              },
+            },
+            "Resource": "*",
+          },
+          {
+            "Action": "s3:*",
+            "Principal": "*",
+            "Resource": "*",
+          },
+        ],
+      },
+    });
+  });
 });
 
 function includeJsonTemplate(scope: core.Construct, testTemplate: string): ICfnTemplate {

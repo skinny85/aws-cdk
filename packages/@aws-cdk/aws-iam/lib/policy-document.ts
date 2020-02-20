@@ -24,6 +24,16 @@ export interface PolicyDocumentProps {
  * A PolicyDocument is a collection of statements
  */
 export class PolicyDocument implements cdk.IResolvable {
+  /** fromCfnPolicyDocument */
+  public static fromCfnPolicyDocument(cfnPolicyDocument: any): PolicyDocument | undefined {
+    const statements = cfnPolicyDocument.Statement;
+    return Array.isArray(statements)
+      ? new PolicyDocument({
+          statements: statements.map(stmt => PolicyStatement.fromCfnPolicyStatement(stmt)),
+        })
+      : undefined;
+  }
+
   public readonly creationStack: string[];
   private readonly statements = new Array<PolicyStatement>();
   private readonly autoAssignSids: boolean;

@@ -1,5 +1,5 @@
 import * as iam from '@aws-cdk/aws-iam';
-import { Construct, IResource, RemovalPolicy, Resource, Stack } from '@aws-cdk/core';
+import { Construct, IResource, Lazy, RemovalPolicy, Resource, Stack } from '@aws-cdk/core';
 import { Alias } from './alias';
 import { CfnKey } from './kms.generated';
 
@@ -336,10 +336,19 @@ export class Key extends KeyBase {
 
   /** fromCfnKey */
   public static fromCfnKey(cfnKey: CfnKey): IKey {
+    let keyPolicy: iam.PolicyDocument | undefined;
+    if (cfnKey.keyPolicy) {
+      keyPolicy = iam.PolicyDocument.fromCfnPolicyDocument(cfnKey.keyPolicy);
+      if (keyPolicy) {
+        // change the key policy of the L1, so that all changes done in the L2 are reflected in the resulting template
+        cfnKey.keyPolicy = Lazy.anyValue({ produce: () => keyPolicy?.toJSON() });
+      }
+    }
+
     class L2KeyFromL1 extends KeyBase {
       public readonly keyArn = cfnKey.attrArn;
       public readonly keyId = cfnKey.ref;
-      protected readonly policy?: iam.PolicyDocument | undefined = undefined; // ToDo add policy handling
+      protected readonly policy = keyPolicy;
     }
 
     return new L2KeyFromL1(cfnKey, 'Key');
