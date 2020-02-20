@@ -146,7 +146,7 @@ class CfnTemplate implements ICfnTemplate {
       case 'AWS::AccountId': return core.Aws.ACCOUNT_ID;
       case 'AWS::Region': return core.Aws.REGION;
       case 'AWS::Partition': return core.Aws.PARTITION;
-      case 'AWS::URLSuffix': return core.Aws.PARTITION;
+      case 'AWS::URLSuffix': return core.Aws.URL_SUFFIX;
       case 'AWS::NotificationARNs': return core.Aws.NOTIFICATION_ARNS;
       case 'AWS::StackId': return core.Aws.STACK_ID;
       case 'AWS::StackName': return core.Aws.STACK_NAME;
