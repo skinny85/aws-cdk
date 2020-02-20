@@ -224,7 +224,7 @@ describe('CDK Include', () => {
     expect(bucket.encryptionKey).toBeDefined();
   });
 
-  test('renders changes in the KeyPolicy of the L2 KMS Key, created from the l1 Key extracted from the ingested template', () => {
+  test('renders changes in the KeyPolicy of the L2 KMS Key, created from the L1 Key extracted from the ingested template', () => {
     const stack = new core.Stack();
 
     const cfnTemplate = includeJsonTemplate(stack, 'bucket-with-encryption-key.json');
@@ -240,25 +240,39 @@ describe('CDK Include', () => {
     expect(stack).toHaveResourceLike('AWS::KMS::Key', {
       "KeyPolicy": {
         "Statement": [
-          {
-            "Action": "kms:*",
-            "Principal": {
-              "AWS": {
-                "Fn::Join": ["", [
-                  "arn:",
-                  { "Ref": "AWS::Partition" },
-                  ":iam::",
-                  { "Ref": "AWS::AccountId" },
-                  ":root",
-                ]],
-              },
-            },
-            "Resource": "*",
-          },
+          {},
           {
             "Action": "s3:*",
             "Principal": "*",
             "Resource": "*",
+          },
+        ],
+      },
+    });
+  });
+
+  test("implicitly creates a BucketPolicy when using the L2 Bucket's, created from the L1 extracted from the ingested template, " +
+      "addToResourcePolicy method", () => {
+    const stack = new core.Stack();
+
+    const cfnTemplate = includeJsonTemplate(stack, 'only-empty-bucket.json');
+    const cfnBucket = cfnTemplate.getResource('Bucket') as s3.CfnBucket;
+    const bucket = s3.Bucket.fromCfnBucket(cfnBucket);
+
+    bucket.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ['s3:*'],
+      resources: ['*'],
+      principals: [new iam.AnyPrincipal()],
+    }));
+
+    expect(stack).toHaveResourceLike('AWS::S3::BucketPolicy', {
+      "Bucket": { "Ref": "Bucket" },
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": "s3:*",
+            "Resource": "*",
+            "Principal": "*",
           },
         ],
       },

@@ -983,14 +983,13 @@ export class Bucket extends BucketBase {
   }
 
   /** fromCfnBucket */
-  public static fromCfnBucket(bucket: CfnBucket): IBucket {
+  public static fromCfnBucket(cfnBucket: CfnBucket): IBucket {
     let encryptionKey: kms.IKey | undefined;
     // take out the encryption key, if it's defined
-    if (bucket.bucketEncryption) {
-      const serverSideEncryptionConfiguration = (bucket.bucketEncryption as any).serverSideEncryptionConfiguration;
+    if (cfnBucket.bucketEncryption) {
+      const serverSideEncryptionConfiguration = (cfnBucket.bucketEncryption as any).serverSideEncryptionConfiguration;
       if (Array.isArray(serverSideEncryptionConfiguration) && serverSideEncryptionConfiguration.length === 1) {
-        const serverSideEncryptionRuleProperty = serverSideEncryptionConfiguration[0];
-        const serverSideEncryptionByDefault = serverSideEncryptionRuleProperty.serverSideEncryptionByDefault;
+        const serverSideEncryptionByDefault = serverSideEncryptionConfiguration[0].serverSideEncryptionByDefault;
         if (serverSideEncryptionByDefault && serverSideEncryptionByDefault.kmsMasterKeyId instanceof MagicResolvable) {
           const cfnElement = serverSideEncryptionByDefault.kmsMasterKeyId.cfnElement;
           if (cfnElement instanceof kms.CfnKey) {
@@ -1001,21 +1000,21 @@ export class Bucket extends BucketBase {
     }
 
     class L2BucketFromL1 extends BucketBase {
-      public readonly bucketArn = bucket.attrArn;
-      public readonly bucketName = bucket.ref;
-      public readonly bucketDomainName = bucket.attrDomainName;
-      public readonly bucketDualStackDomainName = bucket.attrDualStackDomainName;
-      public readonly bucketRegionalDomainName = bucket.attrRegionalDomainName;
-      public readonly bucketWebsiteUrl = bucket.attrWebsiteUrl;
-      public readonly bucketWebsiteDomainName = Fn.select(2, Fn.split('/', bucket.attrWebsiteUrl));
+      public readonly bucketArn = cfnBucket.attrArn;
+      public readonly bucketName = cfnBucket.ref;
+      public readonly bucketDomainName = cfnBucket.attrDomainName;
+      public readonly bucketDualStackDomainName = cfnBucket.attrDualStackDomainName;
+      public readonly bucketRegionalDomainName = cfnBucket.attrRegionalDomainName;
+      public readonly bucketWebsiteUrl = cfnBucket.attrWebsiteUrl;
+      public readonly bucketWebsiteDomainName = Fn.select(2, Fn.split('/', cfnBucket.attrWebsiteUrl));
       public readonly encryptionKey = encryptionKey;
-      public policy = undefined; // ToDo add policy handling
-      protected autoCreatePolicy = false; // ToDo add policy handling
-      protected disallowPublicAccess = bucket.publicAccessBlockConfiguration &&
-        (bucket.publicAccessBlockConfiguration as any).blockPublicPolicy;
+      public policy = undefined;
+      protected autoCreatePolicy = true;
+      protected disallowPublicAccess = cfnBucket.publicAccessBlockConfiguration &&
+        (cfnBucket.publicAccessBlockConfiguration as any).blockPublicPolicy;
     }
 
-    return new L2BucketFromL1(bucket, 'Bucket');
+    return new L2BucketFromL1(cfnBucket, 'Bucket');
   }
 
   public readonly bucketArn: string;
