@@ -349,6 +349,7 @@ export class Key extends KeyBase {
       public readonly keyArn = cfnKey.attrArn;
       public readonly keyId = cfnKey.ref;
       protected readonly policy = keyPolicy;
+      protected readonly trustAccountIdentities = false;
     }
 
     return new L2KeyFromL1(cfnKey, 'Key');
