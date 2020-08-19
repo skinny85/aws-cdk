@@ -3,6 +3,7 @@
 set -euo pipefail
 
 bail="--bail"
+
 runtarget="build+test"
 check_prereqs="true"
 check_compat="true"
