@@ -390,6 +390,14 @@ describe('CDK Include', () => {
       includeTestTemplate(stack, 'invalid/short-form-import-sub.yaml');
     }).toThrow(/A node can have at most one tag/);
   });
+
+  test('can ingest a YAML template with a multiline string', () => {
+    includeTestTemplate(stack, 'multi-line-single-quoted-string.yaml');
+
+    expect(stack).toMatchTemplate(
+      loadTestFileToJsObject('multi-line-single-quoted-string.yaml'),
+    );
+  });
 });
 
 function includeTestTemplate(scope: core.Construct, testTemplate: string): inc.CfnInclude {

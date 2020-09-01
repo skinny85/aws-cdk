@@ -1,0 +1,26 @@
+Resources:
+  InventoryAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      Name: AWS-GatherSoftwareInventory
+      Parameters:
+        # The files that are collected are OS-specific.
+        files:
+        - '[
+          {
+            "Path": "/usr/bin",
+            "Pattern": [
+              "aws*",
+              "*ssm*"
+            ],
+            "Recursive": false
+          },
+          {
+            "Path": "/var/log",
+            "Pattern": [
+              "amazon*.*"
+            ],
+            "Recursive": true,
+            "DirScanLimit": 1000
+          }
+        ]'
