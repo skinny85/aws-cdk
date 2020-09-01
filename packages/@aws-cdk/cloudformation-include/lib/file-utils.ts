@@ -61,5 +61,6 @@ function parseYamlStrWithCfnTags(text: string): any {
   return yaml.parse(text, {
     customTags: shortForms,
     schema: 'yaml-1.1',
+    // version: '1.1', // doesn't do anything
   });
 }
