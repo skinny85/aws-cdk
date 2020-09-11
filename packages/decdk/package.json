@@ -223,6 +223,7 @@
     "aws",
     "cdk"
   ],
+  "stability": "experimental",
   "homepage": "https://github.com/aws/aws-cdk",
   "engines": {
     "node": ">= 8.10.0"

@@ -33,6 +33,7 @@
     "build+test": "npm run build",
     "build+test+package": "npm run build+test && npm run package"
   },
+  "stability": "stable",
   "engines": {
     "node": ">= 8.10.0"
   }

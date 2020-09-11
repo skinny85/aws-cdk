@@ -52,5 +52,6 @@
     "aws",
     "cdk"
   ],
+  "stability": "stable",
   "homepage": "https://github.com/aws/aws-cdk"
 }
