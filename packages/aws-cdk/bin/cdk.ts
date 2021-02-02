@@ -335,7 +335,11 @@ async function initCommandLine() {
         return cli.synth(args.STACKS, args.exclusively, args.quiet);
 
       case 'update':
-        return cli.update(args.STACKS, args.exclusively, args.quiet);
+        return cli.update({
+          stackNames: stacks,
+          // exclusively: false,
+          // toolkitStackName,
+        });
 
       case 'metadata':
         return cli.metadata(args.STACK);

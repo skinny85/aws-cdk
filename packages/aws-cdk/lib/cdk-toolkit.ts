@@ -289,9 +289,16 @@ export class CdkToolkit {
   /**
    * Implements the 'update' command.
    */
-  public async update(stackNames: string[], exclusively: boolean, quiet: boolean): Promise<any> {
-    print('Update command invoked!');
-    return this.synth(stackNames, exclusively, quiet);
+  public async update(options: DeployOptions): Promise<any> {
+    print('Update command invoked (with DeployOptions as the argument!)');
+    const stacks = await this.selectStacksForDeploy(options.stackNames, options.exclusively);
+    const firstStack = stacks.firstStack;
+    // ToDo make this work also for the legacy-style Assets
+    // (this only works for new-style ones)
+    await this.props.cloudFormation.deployStackAssets({
+      stack: firstStack,
+    });
+    return firstStack.template;
   }
 
   /**
@@ -387,7 +394,7 @@ export class CdkToolkit {
     return stacks;
   }
 
-  private async selectStacksForDeploy(stackNames: string[], exclusively?: boolean) {
+  private async selectStacksForDeploy(stackNames: string[], exclusively?: boolean): Promise<StackCollection> {
     const assembly = await this.assembly();
     const stacks = await assembly.selectStacks(stackNames, {
       extend: exclusively ? ExtendedStackSelection.None : ExtendedStackSelection.Upstream,
@@ -399,7 +406,7 @@ export class CdkToolkit {
     return stacks;
   }
 
-  private async selectStacksForDiff(stackNames: string[], exclusively?: boolean) {
+  private async selectStacksForDiff(stackNames: string[], exclusively?: boolean): Promise<StackCollection> {
     const assembly = await this.assembly();
     const stacks = await assembly.selectStacks(stackNames, {
       extend: exclusively ? ExtendedStackSelection.None : ExtendedStackSelection.Upstream,

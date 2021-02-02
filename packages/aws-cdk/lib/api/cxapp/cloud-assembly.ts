@@ -155,7 +155,7 @@ export class StackCollection {
     return this.stackArtifacts.length;
   }
 
-  public get firstStack() {
+  public get firstStack(): cxapi.CloudFormationStackArtifact {
     if (this.stackCount < 1) {
       throw new Error('StackCollection contains no stack artifacts (trying to access the first one)');
     }
