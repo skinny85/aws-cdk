@@ -335,8 +335,7 @@ async function initCommandLine() {
         return cli.synth(args.STACKS, args.exclusively, args.quiet);
 
       case 'update':
-        print('Update command invoked!');
-        return cli.synth(args.STACKS, args.exclusively, args.quiet);
+        return cli.update(args.STACKS, args.exclusively, args.quiet);
 
       case 'metadata':
         return cli.metadata(args.STACK);

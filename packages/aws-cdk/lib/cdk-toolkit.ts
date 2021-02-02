@@ -287,6 +287,14 @@ export class CdkToolkit {
   }
 
   /**
+   * Implements the 'update' command.
+   */
+  public async update(stackNames: string[], exclusively: boolean, quiet: boolean): Promise<any> {
+    print('Update command invoked!');
+    return this.synth(stackNames, exclusively, quiet);
+  }
+
+  /**
    * Synthesize the given set of stacks (called when the user runs 'cdk synth')
    *
    * INPUT: Stack names can be supplied using a glob filter. If no stacks are
