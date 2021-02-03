@@ -148,7 +148,7 @@ export class CloudFormationDeployments {
   public async deployStackAssets(options: DeployStackOptions): Promise<void> {
     const { stackSdk, resolvedEnvironment } = await this.prepareSdkFor(options.stack, options.roleArn);
     const toolkitInfo = await ToolkitInfo.lookup(resolvedEnvironment, stackSdk, options.toolkitStackName);
-    return this.publishStackAssets(options.stack, toolkitInfo);
+    return this.publishStackAssets(options.stack, toolkitInfo, true);
   }
 
   public async updateLambdas(stack: cxapi.CloudFormationStackArtifact): Promise<number | undefined> {
@@ -294,7 +294,10 @@ export class CloudFormationDeployments {
   /**
    * Publish all asset manifests that are referenced by the given stack
    */
-  private async publishStackAssets(stack: cxapi.CloudFormationStackArtifact, toolkitInfo: ToolkitInfo): Promise<void> {
+  private async publishStackAssets(
+    stack: cxapi.CloudFormationStackArtifact, toolkitInfo: ToolkitInfo,
+    skipPublishingTemplate: boolean = false): Promise<void> {
+
     const stackEnv = await this.sdkProvider.resolveEnvironment(stack.environment);
     const assetArtifacts = stack.dependencies.filter(isAssetManifestArtifact);
 
@@ -306,7 +309,7 @@ export class CloudFormationDeployments {
         toolkitInfo);
 
       const manifest = AssetManifest.fromFile(assetArtifact.file);
-      await publishAssets(manifest, this.sdkProvider, stackEnv);
+      await publishAssets(manifest, this.sdkProvider, stackEnv, skipPublishingTemplate);
     }
   }
 

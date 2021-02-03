@@ -7,7 +7,10 @@ import { debug, error, print } from '../logging';
 /**
  * Use cdk-assets to publish all assets in the given manifest.
  */
-export async function publishAssets(manifest: cdk_assets.AssetManifest, sdk: SdkProvider, targetEnv: cxapi.Environment) {
+export async function publishAssets(
+  manifest: cdk_assets.AssetManifest, sdk: SdkProvider, targetEnv: cxapi.Environment,
+  skipPublishingTemplate: boolean = false) {
+
   // This shouldn't really happen (it's a programming error), but we don't have
   // the types here to guide us. Do an runtime validation to be super super sure.
   if (targetEnv.account === undefined || targetEnv.account === cxapi.UNKNOWN_ACCOUNT
@@ -19,6 +22,7 @@ export async function publishAssets(manifest: cdk_assets.AssetManifest, sdk: Sdk
     aws: new PublishingAws(sdk, targetEnv),
     progressListener: new PublishingProgressListener(),
     throwOnError: false,
+    skipPublishingTemplate,
   });
   await publisher.publish();
   if (publisher.hasFailures) {

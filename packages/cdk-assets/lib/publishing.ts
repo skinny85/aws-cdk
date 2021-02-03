@@ -1,4 +1,4 @@
-import { AssetManifest, IManifestEntry } from './asset-manifest';
+import { AssetManifest, FileManifestEntry, IManifestEntry } from './asset-manifest';
 import { IAws } from './aws';
 import { makeAssetHandler } from './private/handlers';
 import { EventType, IPublishProgress, IPublishProgressListener } from './progress';
@@ -22,6 +22,14 @@ export interface AssetPublishingOptions {
    * @default true
    */
   readonly throwOnError?: boolean;
+
+  /**
+   * Whether to skip publishing the template assets.
+   * Only used in `cdk update`.
+   *
+   * @default false
+   */
+  readonly skipPublishingTemplate?: boolean;
 }
 
 /**
@@ -69,6 +77,13 @@ export class AssetPublishing implements IPublishProgress {
 
     for (const asset of this.assets) {
       if (this.aborted) { break; }
+
+      if (this.options.skipPublishingTemplate && asset instanceof FileManifestEntry &&
+          asset.source.path?.endsWith('template.json')) {
+        this.progressEvent(EventType.SUCCESS, `Asset '${asset.id}' skipped, as the CFN template is not needed for 'update'`);
+        continue;
+      }
+
       this.currentAsset = asset;
 
       try {
