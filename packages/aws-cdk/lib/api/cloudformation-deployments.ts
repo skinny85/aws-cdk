@@ -151,6 +151,39 @@ export class CloudFormationDeployments {
     return this.publishStackAssets(options.stack, toolkitInfo);
   }
 
+  public async updateLambdas(stack: cxapi.CloudFormationStackArtifact): Promise<number | undefined> {
+    // !!!! super hacky !!!! - use the current credentials for this call,
+    // instead of the usually assumed deploy Role
+    (stack as any).assumeRoleArn = undefined;
+
+    const { stackSdk } = await this.prepareSdkFor(stack);
+    // ToDo handle pagination
+    const stackResources = await stackSdk.cloudFormation().listStackResources({
+      StackName: stack.stackName,
+    }).promise();
+
+    let count = 0;
+    // take out all of the Lambdas from the stack's template
+    const stackLambdas = Object.entries(stack.template.Resources || {})
+      .filter((resEntry: any) => resEntry[1].Type === 'AWS::Lambda::Function');
+    for (const stackLambda of stackLambdas) {
+      const actualLambda = stackResources.StackResourceSummaries?.find(srs => srs.LogicalResourceId === stackLambda[0]);
+      if (!actualLambda) {
+        continue;
+      }
+      const stackLambdaCode = (stackLambda as any)[1].Properties.Code;
+      await stackSdk.lambda().updateFunctionCode({
+        FunctionName: actualLambda.PhysicalResourceId!,
+        S3Bucket: stackLambdaCode.S3Bucket,
+        S3Key: stackLambdaCode.S3Key,
+      }).promise();
+
+      count += 1;
+    }
+
+    return count;
+  }
+
   public async deployStack(options: DeployStackOptions): Promise<DeployStackResult> {
     const { stackSdk, resolvedEnvironment, cloudFormationRoleArn } = await this.prepareSdkFor(options.stack, options.roleArn);
 

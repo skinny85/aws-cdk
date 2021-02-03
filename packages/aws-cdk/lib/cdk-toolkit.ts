@@ -290,7 +290,7 @@ export class CdkToolkit {
    * Implements the 'update' command.
    */
   public async update(options: DeployOptions): Promise<any> {
-    print('Update command invoked (with DeployOptions as the argument!)');
+    print('Update command invoked (with ListStackResources!)');
     const stacks = await this.selectStacksForDeploy(options.stackNames, options.exclusively);
     const firstStack = stacks.firstStack;
     // ToDo make this work also for the legacy-style Assets
@@ -298,6 +298,11 @@ export class CdkToolkit {
     await this.props.cloudFormation.deployStackAssets({
       stack: firstStack,
     });
+
+    // update all of the Lambda functions
+    const resNr = await this.props.cloudFormation.updateLambdas(firstStack);
+    print(`Updated ${resNr} Lambdas in the Stack`);
+
     return firstStack.template;
   }
 
