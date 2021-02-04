@@ -63,6 +63,12 @@ export class MockSdkProvider extends SdkProvider {
   public stubEcr(stubs: SyncHandlerSubsetOf<AWS.ECR>) {
     (this.sdk as any).ecr = jest.fn().mockReturnValue(partialAwsService<AWS.ECR>(stubs));
   }
+  /**
+   * Replace the Lambda client with the given object
+   */
+  public stubLambda(stubs: SyncHandlerSubsetOf<AWS.Lambda>) {
+    (this.sdk as any).lambda = jest.fn().mockReturnValue(partialAwsService<AWS.Lambda>(stubs));
+  }
 
   /**
    * Replace the S3 client with the given object
@@ -102,6 +108,7 @@ export class MockSdk implements ISDK {
   public readonly route53 = jest.fn();
   public readonly ecr = jest.fn();
   public readonly elbv2 = jest.fn();
+  public readonly lambda = jest.fn();
 
   public currentAccount(): Promise<Account> {
     return Promise.resolve({ accountId: '123456789012', partition: 'aws' });
@@ -119,6 +126,13 @@ export class MockSdk implements ISDK {
    */
   public stubEcr(stubs: SyncHandlerSubsetOf<AWS.ECR>) {
     this.ecr.mockReturnValue(partialAwsService<AWS.ECR>(stubs));
+  }
+
+  /**
+   * Replace the Lambda client with the given object
+   */
+  public stubLambda(stubs: SyncHandlerSubsetOf<AWS.Lambda>) {
+    this.ecr.mockReturnValue(partialAwsService<AWS.Lambda>(stubs));
   }
 
   /**
@@ -178,19 +192,19 @@ function partialAwsService<S>(fns: SyncHandlerSubsetOf<S>): S {
 //
 // Get the first overload and extract the input and output struct types
 type AwsCallInputOutput<T> =
-    T extends {
-      (args: infer INPUT, callback?: ((err: AWS.AWSError, data: any) => void) | undefined): AWS.Request<infer OUTPUT, AWS.AWSError>;
-      (callback?: ((err: AWS.AWSError, data: {}) => void) | undefined): AWS.Request<any, any>;
-    } ? [INPUT, OUTPUT] : T;
+  T extends {
+    (args: infer INPUT, callback?: ((err: AWS.AWSError, data: any) => void) | undefined): AWS.Request<infer OUTPUT, AWS.AWSError>;
+    (callback?: ((err: AWS.AWSError, data: {}) => void) | undefined): AWS.Request<any, any>;
+  } ? [INPUT, OUTPUT] : T;
 
 // Determine the type of the mock handler from the type of the Input/Output type pair.
 // Don't need to worry about the 'never', TypeScript will propagate it upwards making it
 // impossible to specify the field that has 'never' anywhere in its type.
 type MockHandlerType<AI> =
-    AI extends [any, any] ? (input: AI[0]) => AI[1] : AI;
+  AI extends [any, any] ? (input: AI[0]) => AI[1] : AI;
 
 // Any subset of the full type that synchronously returns the output structure is okay
-export type SyncHandlerSubsetOf<S> = {[K in keyof S]?: MockHandlerType<AwsCallInputOutput<S[K]>>};
+export type SyncHandlerSubsetOf<S> = { [K in keyof S]?: MockHandlerType<AwsCallInputOutput<S[K]>> };
 
 /**
  * Fake AWS response.
@@ -237,7 +251,7 @@ export function mockResolvedEnvironment(): cxapi.Environment {
 // Jest helpers
 
 // An object on which all callables are Jest Mocks
-export type MockedObject<S extends object> = {[K in keyof S]: MockedFunction<Required<S>[K]>};
+export type MockedObject<S extends object> = { [K in keyof S]: MockedFunction<Required<S>[K]> };
 
 // If a function, then a mocked version of it, otherwise just T
 type MockedFunction<T> = T extends (...args: any[]) => any

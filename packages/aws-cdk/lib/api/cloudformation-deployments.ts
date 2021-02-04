@@ -104,6 +104,13 @@ export interface DeployStackOptions {
    * @default false
    */
   readonly ci?: boolean;
+
+  /**
+   * If true, shortcut deploy Lambda functions if that's all that has changed.
+   *
+   * @default false
+   */
+  shortcut?: boolean;
 }
 
 export interface DestroyStackOptions {
@@ -178,6 +185,7 @@ export class CloudFormationDeployments {
       usePreviousParameters: options.usePreviousParameters,
       progress: options.progress,
       ci: options.ci,
+      shortcut: options.shortcut,
     });
   }
 

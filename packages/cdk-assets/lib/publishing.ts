@@ -64,12 +64,18 @@ export class AssetPublishing implements IPublishProgress {
   /**
    * Publish all assets from the manifest
    */
-  public async publish(): Promise<void> {
+  public async publish(filterIds?: string[]): Promise<void> {
     const self = this;
 
     for (const asset of this.assets) {
       if (this.aborted) { break; }
       this.currentAsset = asset;
+
+      if (filterIds !== undefined) {
+        if (filterIds.indexOf(asset.id.assetId) == -1) {
+          continue;
+        }
+      }
 
       try {
         if (this.progressEvent(EventType.START, `Publishing ${asset.id}`)) { break; }

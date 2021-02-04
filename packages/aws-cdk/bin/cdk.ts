@@ -99,8 +99,8 @@ async function parseCommandLineArguments() {
       .option('parameters', { type: 'array', desc: 'Additional parameters passed to CloudFormation at deploy time (STACK:KEY=VALUE)', nargs: 1, requiresArg: true, default: {} })
       .option('outputs-file', { type: 'string', alias: 'O', desc: 'Path to file where stack outputs will be written as JSON', requiresArg: true })
       .option('previous-parameters', { type: 'boolean', default: true, desc: 'Use previous values for existing parameters (you must specify all parameters on every deployment if this is disabled)' })
-      .option('progress', { type: 'string', choices: [StackActivityProgress.BAR, StackActivityProgress.EVENTS], desc: 'Display mode for stack activity events' }),
-    )
+      .option('progress', { type: 'string', choices: [StackActivityProgress.BAR, StackActivityProgress.EVENTS], desc: 'Display mode for stack activity events' })
+      .option('shortcut', { type: 'boolean', default: false, desc: 'Shortcut Lambda deployments if nothing else has changed' }))
     .command('destroy [STACKS..]', 'Destroy the stack(s) named STACKS', yargs => yargs
       .option('all', { type: 'boolean', default: false, desc: 'Destroy all available stacks' })
       .option('exclusively', { type: 'boolean', alias: 'e', desc: 'Only destroy requested stacks, don\'t include dependees' })
@@ -319,6 +319,7 @@ async function initCommandLine() {
           outputsFile: args.outputsFile,
           progress: configuration.settings.get(['progress']),
           ci: args.ci,
+          shortcut: args.shortcut,
         });
 
       case 'destroy':

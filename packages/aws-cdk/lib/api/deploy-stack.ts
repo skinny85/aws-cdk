@@ -1,3 +1,4 @@
+import * as cfnDiff from '@aws-cdk/cloudformation-diff';
 import * as cxapi from '@aws-cdk/cx-api';
 import * as colors from 'colors/safe';
 import * as uuid from 'uuid';
@@ -6,7 +7,7 @@ import { Tag } from '../cdk-toolkit';
 import { debug, error, print } from '../logging';
 import { toYAML } from '../serialize';
 import { AssetManifestBuilder } from '../util/asset-manifest-builder';
-import { publishAssets } from '../util/asset-publishing';
+import { publishAssets, shortcutLambdaFunction, getFunctionName } from '../util/asset-publishing';
 import { contentHash } from '../util/content-hash';
 import { ISDK, SdkProvider } from './aws-auth';
 import { ToolkitInfo } from './toolkit-info';
@@ -171,6 +172,13 @@ export interface DeployStackOptions {
    * @default false
    */
   readonly ci?: boolean;
+
+  /**
+   * If true, shortcut deploy Lambda functions if that's all that has changed.
+   *
+   * @default false
+   */
+  shortcut?: boolean;
 }
 
 const LARGE_TEMPLATE_SIZE_KB = 50;
@@ -211,7 +219,14 @@ export async function deployStack(options: DeployStackOptions): Promise<DeploySt
     ? templateParams.updateExisting(finalParameterValues, cloudFormationStack.parameters)
     : templateParams.supplyAll(finalParameterValues);
 
-  if (await canSkipDeploy(options, cloudFormationStack, stackParams.hasChanges(cloudFormationStack.parameters))) {
+  const skipDeployResult = await canSkipDeploy(
+    options,
+    cloudFormationStack,
+    stackParams.hasChanges(cloudFormationStack.parameters),
+    options.shortcut,
+  );
+
+  if (!skipDeployResult.hasChanges) {
     debug(`${deployName}: skipping deployment (use --force to override)`);
     return {
       noOp: true,
@@ -221,6 +236,111 @@ export async function deployStack(options: DeployStackOptions): Promise<DeploySt
     };
   } else {
     debug(`${deployName}: deploying...`);
+  }
+
+  if (options.shortcut) {
+    debug('SHORTCUT: --shortcut was specified');
+
+    if (skipDeployResult.lambdaOnly) {
+      debug('SHORTCUT: This is a lambda-only change');
+
+      print('Directly updating modified Lambda functions, skipping CloudFormation deployment');
+      // Create a filter list so we only publish the changed lambda assets
+      const filterIds: string[] = [];
+      for (const assetPath in skipDeployResult.modifiedAssetPaths) {
+        filterIds.push(assetPath.replace('asset.', ''));
+      }
+
+      // Publish the assets so we can refer to the latest Lambda code in the S3 bucket
+      await publishAssets(
+        legacyAssets.toManifest(stackArtifact.assembly.directory),
+        options.sdkProvider,
+        stackEnv,
+        filterIds);
+
+      // Iterate over each changed Lambda function
+      for (const assetPath in skipDeployResult.modifiedAssetPaths) {
+        debug(`SHORTCUT: assetPath ${assetPath}`);
+
+        // Get the name of the bucket, object key, and function
+        let s3Bucket: string = '';
+        let s3Key: string = '';
+        const logicalFunctionName = skipDeployResult.modifiedAssetPaths[assetPath];
+
+        // Iterate over all stack parameters to find the ones related to this asset
+        for (const [k, v] of Object.entries(stackParams.values)) {
+          debug(`SHORTCUT: Parameter key: ${k}, value: ${v}`);
+
+          // Look for a matching asset path
+          if (k.indexOf(assetPath.replace('asset.', '')) > -1) {
+            debug('SHORTCUT: Matched asset path');
+
+            if (k.indexOf('S3Bucket') > -1) {
+              s3Bucket = v;
+            }
+
+            // Remove the delimiter from the object key
+            if (k.indexOf('S3VersionKey') > -1) {
+              s3Key = v.replace('||', '');
+            }
+          }
+        }
+
+        // Get the physical name of the function
+        const functionName = await getFunctionName(
+          logicalFunctionName, stackArtifact.stackName, stackEnv, options.sdkProvider);
+
+        if (!s3Key || !s3Bucket) {
+          // Probably means we are on the new default synthesizer
+          // TODO - Find a more reliable way to detect that
+
+          const stackLambdas = Object.entries(stackArtifact.template.Resources || {})
+            .filter((resEntry: any) => resEntry[1].Type === 'AWS::Lambda::Function');
+
+          for (const stackLambda of stackLambdas) {
+            debug(`SHORTCUT: stackLambda ${JSON.stringify(stackLambda)}`);
+
+            if (stackLambda[0] == logicalFunctionName) {
+              const s3BucketResource = (stackLambda[1] as any).Properties.Code.S3Bucket;
+              // TODO - This might be a real name or:
+              // "S3Bucket": {
+              //   "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
+              // },
+              if (typeof s3BucketResource === 'string') {
+                s3Bucket = s3BucketResource;
+              } else {
+                debug(`SHORTCUT: s3BucketResource: ${JSON.stringify(s3BucketResource)}`);
+                const sub = s3BucketResource['Fn::Sub'];
+                s3Bucket = sub.replace('${AWS::AccountId}', stackEnv.account);
+                s3Bucket = s3Bucket.replace('${AWS::Region}', stackEnv.region);
+                debug(`SHORTCUT: s3Bucket sub: ${s3Bucket}`);
+              }
+              s3Key = (stackLambda[1] as any).Properties.Code.S3Key;
+            }
+          }
+        }
+
+        // Update the lambda function code
+        await shortcutLambdaFunction(functionName!, s3Bucket, s3Key, stackEnv, options.sdkProvider);
+      }
+
+      return {
+        noOp: false,
+        outputs: cloudFormationStack.outputs,
+        stackArn: cloudFormationStack.stackId,
+        stackArtifact,
+      };
+    } else {
+      print('There were changes outside of Lambda function code, --shortcut is not a valid option');
+      return {
+        noOp: true,
+        outputs: cloudFormationStack.outputs,
+        stackArn: cloudFormationStack.stackId,
+        stackArtifact,
+      };
+    }
+  } else {
+    debug('SHORTCUT: --shortcut was not specified');
   }
 
   const executionId = uuid.v4();
@@ -386,6 +506,24 @@ export async function destroyStack(options: DestroyStackOptions) {
 }
 
 /**
+ * Returned from canSkipDeply().
+ *
+ * Indicates if there are changes, and also specifies if those changes were
+ * only to Lambda assets.
+ *
+ * hasChanges
+ * lambdaOnly
+ * modifiedAssetPaths - key: AssetPath value: LogicalFunctionId
+ */
+export class SkipDeployResult {
+  constructor(
+    public hasChanges: boolean,
+    public lambdaOnly?: boolean,
+    public modifiedAssetPaths?: { [key: string]: string }) {
+  }
+}
+
+/**
  * Checks whether we can skip deployment
  *
  * We do this in a complicated way by preprocessing (instead of just
@@ -397,7 +535,8 @@ export async function destroyStack(options: DestroyStackOptions) {
 async function canSkipDeploy(
   deployStackOptions: DeployStackOptions,
   cloudFormationStack: CloudFormationStack,
-  parameterChanges: boolean): Promise<boolean> {
+  parameterChanges: boolean,
+  isShortcut?: boolean): Promise<SkipDeployResult> {
 
   const deployName = deployStackOptions.deployName || deployStackOptions.stack.stackName;
   debug(`${deployName}: checking if we can skip deploy`);
@@ -405,46 +544,129 @@ async function canSkipDeploy(
   // Forced deploy
   if (deployStackOptions.force) {
     debug(`${deployName}: forced deployment`);
-    return false;
+    return new SkipDeployResult(true);
   }
 
   // No existing stack
   if (!cloudFormationStack.exists) {
     debug(`${deployName}: no existing stack`);
-    return false;
+    return new SkipDeployResult(true);
   }
 
   // Template has changed (assets taken into account here)
-  if (JSON.stringify(deployStackOptions.stack.template) !== JSON.stringify(await cloudFormationStack.template())) {
+  const cfnStackTemplate = await cloudFormationStack.template();
+  if (JSON.stringify(deployStackOptions.stack.template) !== JSON.stringify(cfnStackTemplate)) {
     debug(`${deployName}: template has changed`);
-    return false;
+    if (!isShortcut) {
+      return new SkipDeployResult(true);
+    }
+
+    debug('SHORTCUT: About to check if only lambda functions changed');
+    // Check to see if the change is only to Lambda function code,
+    // in case the user specified `deploy --shortcut`
+    const differences: cfnDiff.TemplateDiff =
+      cfnDiff.diffTemplate(cfnStackTemplate, deployStackOptions.stack.template);
+
+    let lambdaOnly = true;
+    const modifiedLambdaFunctions: { [key: string]: string } = {};
+    differences.resources.forEachDifference((logicalId: string, change: any) => {
+      // TODO - Remove this
+      debug(`SHORTCUT CHANGE ${logicalId}: ${JSON.stringify(change)}`);
+
+      if (!changeIsLambdaCode(change)) {
+        lambdaOnly = false;
+      } else {
+        // Get the asset path
+        const assetPath = change.newValue.Metadata['aws:asset:path'];
+
+        if (!assetPath) {
+          debug('SHORTCUT: Expected change.newValue.Metadata aws:asset:path');
+          lambdaOnly = false;
+        } else {
+          modifiedLambdaFunctions[assetPath] = logicalId;
+        }
+      }
+    });
+    return new SkipDeployResult(true, lambdaOnly, modifiedLambdaFunctions);
   }
 
   // Tags have changed
   if (!compareTags(cloudFormationStack.tags, deployStackOptions.tags ?? [])) {
     debug(`${deployName}: tags have changed`);
-    return false;
+    return new SkipDeployResult(true);
   }
 
   // Termination protection has been updated
   if (!!deployStackOptions.stack.terminationProtection !== !!cloudFormationStack.terminationProtection) {
     debug(`${deployName}: termination protection has been updated`);
-    return false;
+    return new SkipDeployResult(true);
   }
 
   // Parameters have changed
   if (parameterChanges) {
     debug(`${deployName}: parameters have changed`);
-    return false;
+    return new SkipDeployResult(true);
   }
 
   // Existing stack is in a failed state
   if (cloudFormationStack.stackStatus.isFailure) {
     debug(`${deployName}: stack is in a failure state`);
-    return false;
+    return new SkipDeployResult(true);
   }
 
   // We can skip deploy
+  return new SkipDeployResult(false);
+}
+
+/**
+ * Returns true if the change to the resource is only a code change to a Lambda function.
+ *
+ * @param change The ResourceDifference between the two templates
+ */
+function changeIsLambdaCode(change: cfnDiff.ResourceDifference): boolean {
+  if (!change.newValue) {
+    debug('changeIsLambda missing newValue');
+    return false;
+  }
+
+  // TODO - Unit test, add to diff-template.test.ts?
+
+  const resourceType = change.newValue.Type;
+
+  // Ignore Metadata changes
+  if (resourceType === 'AWS::CDK::Metadata') {
+    return true;
+  }
+
+  // The only other resource change we should see is a Lambda function
+  if (resourceType !== 'AWS::Lambda::Function') {
+    return false;
+  }
+
+
+  // Make sure only the code in the Lambda function changed
+  const propertyUpdates = change.propertyUpdates;
+  for (const key in propertyUpdates) {
+    const diff = propertyUpdates[key] as any;
+
+    // TODO - Remove this
+    debug(`SHORTCUT lambda property diff: ${JSON.stringify(diff)}`);
+
+    if (diff.newValue === undefined) {
+      return false;
+    }
+
+    for (const diffkey in diff.newValue) {
+      if (diffkey !== 'S3Bucket' && diffkey !== 'S3Key') {
+        debug(`SHORTCUT: saw an unexpected property change: ${key} ${diffkey}`);
+        return false;
+      }
+    }
+
+  }
+
+  // If we made it this far, we didn't see anything that would indicate
+  // that the change is anything but a change to Lambda function code.
   return true;
 }
 
