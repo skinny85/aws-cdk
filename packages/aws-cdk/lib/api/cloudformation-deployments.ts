@@ -3,7 +3,7 @@ import { AssetManifest } from 'cdk-assets';
 import { Tag } from '../cdk-toolkit';
 import { debug } from '../logging';
 import { publishAssets } from '../util/asset-publishing';
-import { Mode, SdkProvider } from './aws-auth';
+import { ISDK, Mode, SdkProvider } from './aws-auth';
 import { deployStack, DeployStackResult, destroyStack } from './deploy-stack';
 import { ToolkitInfo } from './toolkit-info';
 import { CloudFormationStack, Template } from './util/cloudformation';
@@ -155,25 +155,36 @@ export class CloudFormationDeployments {
     // !!!! super hacky !!!! - use the current credentials for this call,
     // instead of the usually assumed deploy Role
     (stack as any).assumeRoleArn = undefined;
-
     const { stackSdk } = await this.prepareSdkFor(stack);
-    // ToDo handle pagination
-    const stackResources = await stackSdk.cloudFormation().listStackResources({
-      StackName: stack.stackName,
-    }).promise();
 
+    let stackResources: AWS.CloudFormation.StackResourceSummary[] = [];
     let count = 0;
     // take out all of the Lambdas from the stack's template
     const stackLambdas = Object.entries(stack.template.Resources || {})
       .filter((resEntry: any) => resEntry[1].Type === 'AWS::Lambda::Function');
     for (const stackLambda of stackLambdas) {
-      const actualLambda = stackResources.StackResourceSummaries?.find(srs => srs.LogicalResourceId === stackLambda[0]);
-      if (!actualLambda) {
-        continue;
+      const stackLambdaProperties = (stackLambda as any)[1].Properties;
+
+      // determine the Function's physical name
+      // if it was provided by the user, use that;
+      // if not, call CloudFormation's ListStackResources
+      let lambdaPhysicalName: string;
+      if (stackLambdaProperties.FunctionName) {
+        lambdaPhysicalName = stackLambdaProperties.FunctionName;
+      } else {
+        if (stackResources.length === 0) {
+          stackResources = await this.getStackResources(stackSdk, stack.stackName);
+        }
+        const actualLambda = stackResources.find(srs => srs.LogicalResourceId === stackLambda[0]);
+        if (!actualLambda) {
+          continue;
+        }
+        lambdaPhysicalName = actualLambda.PhysicalResourceId!;
       }
-      const stackLambdaCode = (stackLambda as any)[1].Properties.Code;
+
+      const stackLambdaCode = stackLambdaProperties.Code;
       await stackSdk.lambda().updateFunctionCode({
-        FunctionName: actualLambda.PhysicalResourceId!,
+        FunctionName: lambdaPhysicalName,
         S3Bucket: stackLambdaCode.S3Bucket,
         S3Key: stackLambdaCode.S3Key,
       }).promise();
@@ -329,6 +340,14 @@ export class CloudFormationDeployments {
     } catch (e) {
       throw new Error(`${stackName}: ${e.message}`);
     }
+  }
+
+  private async getStackResources(stackSdk: ISDK, stackName: string): Promise<AWS.CloudFormation.StackResourceSummary[]> {
+    // ToDo handle pagination
+    const stackResources = await stackSdk.cloudFormation().listStackResources({
+      StackName: stackName,
+    }).promise();
+    return stackResources.StackResourceSummaries!;
   }
 }
 
