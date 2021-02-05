@@ -1,5 +1,6 @@
 import * as path from 'path';
 import { format } from 'util';
+import * as cfnDiff from '@aws-cdk/cloudformation-diff';
 import * as cxapi from '@aws-cdk/cx-api';
 import * as colors from 'colors/safe';
 import * as fs from 'fs-extra';
@@ -290,9 +291,27 @@ export class CdkToolkit {
    * Implements the 'update' command.
    */
   public async update(options: DeployOptions): Promise<any> {
-    print('Update command invoked (with ListStackResources!)');
+    print('Update command invoked');
     const stacks = await this.selectStacksForDeploy(options.stackNames, options.exclusively);
     const firstStack = stacks.firstStack;
+
+    // check whether the change is only to the Assets -
+    // if not, error out
+    const currentTemplate = await this.props.cloudFormation.readCurrentTemplate(firstStack);
+    // printStackDiff(currentTemplate, firstStack, false, 3, process.stdout);
+    const differences: cfnDiff.TemplateDiff =
+      cfnDiff.diffTemplate(currentTemplate, firstStack.template);
+    let changesAreOnlyToAssets = true;
+    differences.resources.forEachDifference((_: string, change: cfnDiff.ResourceDifference) => {
+      if (!isOnlyAssetChange(change)) {
+        changesAreOnlyToAssets = false;
+      }
+    });
+    if (!changesAreOnlyToAssets) {
+      error('Your application contains non-Asset changes - in this case, you need to run the full `cdk deploy` instead');
+      return;
+    }
+
     // ToDo make this work also for the legacy-style Assets
     // (this only works for new-style ones)
     await this.props.cloudFormation.deployStackAssets({
@@ -303,7 +322,45 @@ export class CdkToolkit {
     const resNr = await this.props.cloudFormation.updateLambdas(firstStack);
     print(`Updated ${resNr} Lambdas in the Stack`);
 
-    return firstStack.template;
+    function isOnlyAssetChange(change: cfnDiff.ResourceDifference): boolean {
+      if (!changeIsLambdaCode(change)) {
+        return false;
+      } else {
+        // Get the asset path
+        const assetPath = (change as any).newValue.Metadata['aws:asset:path'];
+        return !!assetPath;
+      }
+    }
+
+    function changeIsLambdaCode(change: cfnDiff.ResourceDifference): boolean {
+      if (!change.newValue) {
+        return false;
+      }
+      // TODO - Unit test, add to diff-template.test.ts?
+      const resourceType = change.newValue.Type;
+      // Ignore Metadata changes
+      if (resourceType === 'AWS::CDK::Metadata') {
+        return true;
+      }
+      // The only other resource change we should see is a Lambda function
+      if (resourceType !== 'AWS::Lambda::Function') {
+        return false;
+      }
+      // Make sure only the code in the Lambda function changed
+      const propertyUpdates = change.propertyUpdates;
+      for (const key in propertyUpdates) {
+        const diff = propertyUpdates[key] as any;
+        if (diff.newValue === undefined) {
+          return false;
+        }
+        for (const diffkey in diff.newValue) {
+          if (diffkey !== 'S3Bucket' && diffkey !== 'S3Key') {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
   }
 
   /**
