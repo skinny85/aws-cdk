@@ -21,6 +21,12 @@ set -euo pipefail
 dest="lib/vendored"
 mkdir -p $dest
 
+if [[ $scriptdir != *"/packages/@aws-cdk/assertions"* ]]; then
+  # ignore errors from rsync when doing an out-of-module build
+  # needed for the build in @aws-cdk-lib
+  set +e
+fi
+
 # cfnspec
 mkdir -p $dest/cfnspec
 rsync -a --exclude '*.d.ts' --exclude '*.js' ../cfnspec/lib/ $dest/cfnspec/lib
@@ -33,6 +39,8 @@ find $dest/cloudformation-diff -name '*.ts' | xargs -n1 bash -c 'porta_sed "$@"'
 # assert-internal
 rsync -a --exclude '*.d.ts' --exclude '*.js' ../assert-internal/lib/ $dest/assert
 find $dest/assert -name '*.ts' | xargs -n1 bash -c 'porta_sed "$@"' _ '@aws-cdk/cloudformation-diff' '../../cloudformation-diff'
+
+set -e
 
 # readme
 cat > $dest/README.md <<EOF
